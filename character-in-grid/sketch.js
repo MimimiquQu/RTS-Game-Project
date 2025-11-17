@@ -3,17 +3,32 @@
 const CELL_SIZE = 50;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
-const PLAYER_TILE = 9;
 
 let grid;
 let rows;
 let cols;
-let player = {
-  x: 0,
-  y: 0,
-}
 let grassImg;
 let pavingImg;
+let grassDensity = 0.0;
+let unitSpeed = 4; // grids per second
+let units = [];
+
+class Unit {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.speed = unitSpeed;
+    this.lastMovedTime;
+  }
+  moveUnit(dx, dy) {
+    this.x += dx;
+    this.y += dy;
+  }
+  renderUnit() {
+    fill("blue");
+    circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE);
+  }
+}
 
 function preload() {
   grassImg = loadImage("images/grass-tile.png");
@@ -23,16 +38,32 @@ function preload() {
 
 function setup() {
   createCanvas(0.9*windowWidth, 0.9*windowHeight);
+  angleMode(DEGREES);
   cols = floor(height/CELL_SIZE);
   rows = floor(width/CELL_SIZE);
   grid = generateGrid(rows, cols);
-  grid[player.x][player.y] = PLAYER_TILE;
+  units.push(new Unit(1, 1));
+  
 }
 
 function draw() {
   background("blue");
   renderGrid();
-  console.log(player);
+  moveAllUnits();
+  renderAllUnits();
+}
+
+function moveAllUnits() {
+  for (let u of units) {
+    let direction = floor(random(4))*90;
+    u.moveUnit(cos(direction), sin(direction));
+  }
+}
+
+function renderAllUnits() {
+  for (let u of units) {
+    u.renderUnit();
+  }
 }
 
 function mousePressed() {
@@ -50,15 +81,7 @@ function toggleCell(x, y) {
 }
 
 function keyPressed() {
-  if (key === "a") {
-    movePlayer(-1, 0);
-  } else if (key === "d") {
-    movePlayer(1, 0);
-  } else if (key === "w") {
-    movePlayer(0, -1);
-  } else if (key === "s") {
-    movePlayer(0, 1);
-  }
+
 }
 
 
@@ -68,7 +91,7 @@ function generateGrid(rows, cols) {
     newGrid.push([]);
     for (let j=0; j<cols; j++) {
       let rand = random();
-      if (rand < 0.2) {
+      if (rand < grassDensity) {
         newGrid[i].push(WALL_TILE);
       } else {
         newGrid[i].push(OPEN_TILE);
@@ -95,18 +118,8 @@ function renderGrid() {
         image(pavingImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
       } else if (grid[i][j] === WALL_TILE) {
         image(grassImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      } else if (grid[i][j] === PLAYER_TILE) {
-        fill("red");
       }
     }
   }
 }
 
-function movePlayer(dx, dy) {
-  grid[player.x][player.y] = OPEN_TILE;
-  if (grid[player.x + dx][player.y + dy] === OPEN_TILE) {
-    player.x+=dx;
-    player.y+=dy;
-  }
-  grid[player.x][player.y] = PLAYER_TILE;
-}
