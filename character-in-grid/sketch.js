@@ -20,10 +20,12 @@ class Unit {
     this.speed = unitSpeed;
     this.lastMovedTime;
   }
+
   moveUnit(dx, dy) {
-    this.x += dx;
-    this.y += dy;
+    if(this.x+dx <= cols-1 && this.x+dx >= 0) this.x += dx;
+    if(this.y+dy <= rows-1 && this.y+dy >= 0) this.y += dy;
   }
+
   renderUnit() {
     fill("blue");
     circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE);
@@ -39,10 +41,10 @@ function preload() {
 function setup() {
   createCanvas(0.9*windowWidth, 0.9*windowHeight);
   angleMode(DEGREES);
-  cols = floor(height/CELL_SIZE);
-  rows = floor(width/CELL_SIZE);
+  cols = floor(width/CELL_SIZE);
+  rows = floor(height/CELL_SIZE);
   grid = generateGrid(rows, cols);
-  units.push(new Unit(1, 1));
+  units.push(new Unit(cols/2, rows/2));
   
 }
 
@@ -51,6 +53,12 @@ function draw() {
   renderGrid();
   moveAllUnits();
   renderAllUnits();
+}
+
+function mousePressed() {
+  let x = floor(mouseY / CELL_SIZE);
+  let y = floor(mouseX / CELL_SIZE);
+  toggleCell(x, y);
 }
 
 function moveAllUnits() {
@@ -66,11 +74,7 @@ function renderAllUnits() {
   }
 }
 
-function mousePressed() {
-  let x = floor(mouseY / CELL_SIZE);
-  let y = floor(mouseX / CELL_SIZE);
-  toggleCell(x, y);
-}
+
 
 function toggleCell(x, y) {
   if (grid[y][x] === OPEN_TILE) {
@@ -80,16 +84,13 @@ function toggleCell(x, y) {
   }
 }
 
-function keyPressed() {
-
-}
 
 
 function generateGrid(rows, cols) {
   let newGrid = [];
-  for (let i=0; i<rows; i++) {
+  for (let i=0; i<cols; i++) {
     newGrid.push([]);
-    for (let j=0; j<cols; j++) {
+    for (let j=0; j<rows; j++) {
       let rand = random();
       if (rand < grassDensity) {
         newGrid[i].push(WALL_TILE);
@@ -103,17 +104,17 @@ function generateGrid(rows, cols) {
 
 function emptyGrid(rows, cols) {
   let newGrid = [];
-  for (let i=0; i<rows; i++) {
+  for (let i=0; i<cols; i++) {
     newGrid.push([]);
-    for (let j=0; j<cols; j++) {
+    for (let j=0; j<rows; j++) {
       newGrid[i].push(OPEN_TILE);
     }
   }
   return newGrid;
 }
 function renderGrid() {
-  for (let i=0; i<rows; i++) {
-    for (let j=0; j<cols; j++) {
+  for (let i=0; i<cols; i++) {
+    for (let j=0; j<rows; j++) {
       if (grid[i][j] === OPEN_TILE) {
         image(pavingImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
       } else if (grid[i][j] === WALL_TILE) {
