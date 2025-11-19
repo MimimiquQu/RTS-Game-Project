@@ -18,6 +18,7 @@ class Unit {
     this.x = x;
     this.y = y;
     this.speed = unitSpeed;
+    this.deltaTime = 1/unitSpeed;
     this.lastMovedTime;
   }
 
@@ -44,8 +45,9 @@ function setup() {
   cols = floor(width/CELL_SIZE);
   rows = floor(height/CELL_SIZE);
   grid = generateGrid(rows, cols);
-  units.push(new Unit(cols/2, rows/2));
-  
+  for (let i=0; i<10; i++) {
+    units.push(new Unit(cols/2, rows/2));
+  }
 }
 
 function draw() {
@@ -63,8 +65,11 @@ function mousePressed() {
 
 function moveAllUnits() {
   for (let u of units) {
-    let direction = floor(random(4))*90;
-    u.moveUnit(cos(direction), sin(direction));
+    if (millis() - this.lastMovedTime >= 1000*this.deltaTime) {
+      let direction = floor(random(4))*90;
+      u.moveUnit(cos(direction), sin(direction));
+      u.lastMovedTime = millis();
+    }
   }
 }
 
