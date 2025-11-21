@@ -1,6 +1,6 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 50;
+const CELL_SIZE = 5;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
 
@@ -10,7 +10,7 @@ let cols;
 let grassImg;
 let pavingImg;
 let grassDensity = 0.0;
-let unitSpeed = 4; // grids per second
+let unitSpeed = 20; // grids per second
 let units = [];
 
 class Unit {
@@ -19,7 +19,7 @@ class Unit {
     this.y = y;
     this.speed = unitSpeed;
     this.deltaTime = 1/unitSpeed;
-    this.lastMovedTime;
+    this.lastMovedTime = 0;
   }
 
   moveUnit(dx, dy) {
@@ -65,10 +65,10 @@ function mousePressed() {
 
 function moveAllUnits() {
   for (let u of units) {
-    if (millis() - this.lastMovedTime >= 1000*this.deltaTime) {
+    if (millis()/1000 - u.lastMovedTime >= u.deltaTime) {
       let direction = floor(random(4))*90;
       u.moveUnit(cos(direction), sin(direction));
-      u.lastMovedTime = millis();
+      u.lastMovedTime = millis()/1000;
     }
   }
 }
