@@ -21,11 +21,19 @@ class Unit {
     this.deltaTime = 1/unitSpeed;
     this.lastMovedTime = 0;
     this.selected = false;
+    this.moveTargetX = x;
+    this.moveTargetY = y;
   }
 
   move(dx, dy) {
     if(this.x+dx <= cols-1 && this.x+dx >= 0) this.x += dx;
     if(this.y+dy <= rows-1 && this.y+dy >= 0) this.y += dy;
+  }
+
+  pathfind() {
+    if (this.moveTargetX-this.x > this.moveTargetY-this.y) {
+      
+    }
   }
 
   render() {
@@ -47,7 +55,7 @@ function setup() {
   rows = floor(height/CELL_SIZE);
   grid = generateGrid(rows, cols);
   for (let i=0; i<10; i++) {
-    units.push(new Unit(cols/2, rows/2));
+    units.push(new Unit(i%cols, floor(i/cols)));
   }
   renderGrid();
 }
@@ -61,44 +69,34 @@ function draw() {
 function mousePressed() {
   let x = floor(mouseX / CELL_SIZE);
   let y = floor(mouseY / CELL_SIZE);
-  console.log(x, y)
+  // console.log(x, y);
   if (mouseButton === LEFT) {
-    getUnitsInArea(x, y);
+    selectUnitsInArea(x, y);
   }
 }
 
 function unitsLoop() {
   for (let u of units) {
     if (millis()/1000 - u.lastMovedTime >= u.deltaTime) {
-      u.move(0, 0);
+      u.pathfind();
       u.lastMovedTime = millis()/1000;
     }
-
     u.render();
   }
 }
 
 
-function getUnitsInArea(x,y) {
+function selectUnitsInArea(x,y) {
   let targetUnits = [];
-  for (u in units) {
-    if (u.x === x && u.y === y) {
+  for (let u of units) {
+    console.log(u);
+    if ((u.x === x) && (u.y === y)) {
       targetUnits.push(u);
     }
   }
   console.log(targetUnits);
   return targetUnits;
 }
-
-
-function toggleCell(x, y) {
-  if (grid[y][x] === OPEN_TILE) {
-    grid[y][x] = WALL_TILE;
-  } else if (grid[y][x] === WALL_TILE) {
-    grid[y][x] = OPEN_TILE;
-  }
-}
-
 
 
 function generateGrid(rows, cols) {
