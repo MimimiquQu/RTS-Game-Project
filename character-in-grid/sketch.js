@@ -1,6 +1,6 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 5;
+const CELL_SIZE = 100;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
 
@@ -20,14 +20,15 @@ class Unit {
     this.speed = unitSpeed;
     this.deltaTime = 1/unitSpeed;
     this.lastMovedTime = 0;
+    this.selected = false;
   }
 
-  moveUnit(dx, dy) {
+  move(dx, dy) {
     if(this.x+dx <= cols-1 && this.x+dx >= 0) this.x += dx;
     if(this.y+dy <= rows-1 && this.y+dy >= 0) this.y += dy;
   }
 
-  renderUnit() {
+  render() {
     fill("blue");
     circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE);
   }
@@ -48,37 +49,46 @@ function setup() {
   for (let i=0; i<10; i++) {
     units.push(new Unit(cols/2, rows/2));
   }
+  renderGrid();
 }
 
 function draw() {
   background("blue");
   renderGrid();
-  moveAllUnits();
-  renderAllUnits();
+  unitsLoop();
 }
 
 function mousePressed() {
-  let x = floor(mouseY / CELL_SIZE);
-  let y = floor(mouseX / CELL_SIZE);
-  toggleCell(x, y);
+  let x = floor(mouseX / CELL_SIZE);
+  let y = floor(mouseY / CELL_SIZE);
+  console.log(x, y)
+  if (mouseButton === LEFT) {
+    getUnitsInArea(x, y);
+  }
 }
 
-function moveAllUnits() {
+function unitsLoop() {
   for (let u of units) {
     if (millis()/1000 - u.lastMovedTime >= u.deltaTime) {
-      let direction = floor(random(4))*90;
-      u.moveUnit(cos(direction), sin(direction));
+      u.move(0, 0);
       u.lastMovedTime = millis()/1000;
     }
+
+    u.render();
   }
 }
 
-function renderAllUnits() {
-  for (let u of units) {
-    u.renderUnit();
-  }
-}
 
+function getUnitsInArea(x,y) {
+  let targetUnits = [];
+  for (u in units) {
+    if (u.x === x && u.y === y) {
+      targetUnits.push(u);
+    }
+  }
+  console.log(targetUnits);
+  return targetUnits;
+}
 
 
 function toggleCell(x, y) {
