@@ -1,6 +1,6 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 100;
+const CELL_SIZE = 10;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
 
@@ -12,6 +12,11 @@ let pavingImg;
 let grassDensity = 0.0;
 let unitSpeed = 20; // grids per second
 let units = [];
+let command = "null"; // this is the state variable that tracks the player's current command/state
+let selectedUnits = [];
+
+
+
 
 class Unit {
   constructor(x, y) {
@@ -31,8 +36,21 @@ class Unit {
   }
 
   pathfind() {
-    if (this.moveTargetX-this.x > this.moveTargetY-this.y) {
-      
+    if (!this.selected || (this.moveTargetX-this.x===0 && this.moveTargetY-this.y===0)) {
+      return;
+    }
+    if (abs(this.moveTargetX-this.x) > abs(this.moveTargetY-this.y)) {
+      if (this.moveTargetX-this.x > 0) {
+        this.move(1,0);
+      } else {
+        this.move(-1,0);
+      }
+    } else {
+      if (this.moveTargetY-this.y > 0) {
+        this.move(0,1);
+      } else {
+        this.move(0,-1);
+      }
     }
   }
 
@@ -42,10 +60,14 @@ class Unit {
   }
 }
 
+
+
+
 function preload() {
   grassImg = loadImage("images/grass-tile.png");
   pavingImg = loadImage("images/paving-tile.png");
 }
+
 
 
 function setup() {
@@ -54,26 +76,41 @@ function setup() {
   cols = floor(width/CELL_SIZE);
   rows = floor(height/CELL_SIZE);
   grid = generateGrid(rows, cols);
-  for (let i=0; i<10; i++) {
+  for (let i=0; i<20; i++) {
     units.push(new Unit(i%cols, floor(i/cols)));
   }
   renderGrid();
 }
 
+
+
+
 function draw() {
+  console.log(command);
   background("blue");
   renderGrid();
   unitsLoop();
 }
 
+
+
 function mousePressed() {
-  let x = floor(mouseX / CELL_SIZE);
-  let y = floor(mouseY / CELL_SIZE);
+  let position = coordinateToIndex(mouseX, mouseY);
+  let x = position[0];
+  let y = position[1];
   // console.log(x, y);
-  if (mouseButton === LEFT) {
-    selectUnitsInArea(x, y);
+  if (command === "null" && (mouseButton === LEFT)) {
+    selectedUnits = selectUnitsInArea(x, y);
+    command = "move";
+  }
+  if (command === "move" && (mouseButton === RIGHT)) {
+    moveSelectedUnits(x, y);
+    command = "null";
   }
 }
+
+
+
 
 function unitsLoop() {
   for (let u of units) {
@@ -89,15 +126,22 @@ function unitsLoop() {
 function selectUnitsInArea(x,y) {
   let targetUnits = [];
   for (let u of units) {
-    console.log(u);
+    // console.log(u);
     if ((u.x === x) && (u.y === y)) {
       targetUnits.push(u);
     }
   }
-  console.log(targetUnits);
+  // console.log(targetUnits);
   return targetUnits;
 }
 
+function moveSelectedUnits(x, y) {
+  for (let u of selectedUnits) {
+    u.moveTargetX = x;
+    u.moveTargetY = y;
+    u.selected = true;
+  }
+}
 
 function generateGrid(rows, cols) {
   let newGrid = [];
@@ -137,3 +181,9 @@ function renderGrid() {
   }
 }
 
+function coordinateToIndex(x, y) {
+  let index = [];
+  index.push(max(0, min(cols-1, floor(x/CELL_SIZE))));
+  index.push(max(0, min(rows-1, floor(y/CELL_SIZE))));
+  return index;
+}
