@@ -1,6 +1,6 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 10;
+const CELL_SIZE = 20;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
 
@@ -10,7 +10,7 @@ let cols;
 let grassImg;
 let pavingImg;
 let grassDensity = 0.0;
-let unitSpeed = 20; // grids per second
+let unitSpeed = 5; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
 let selectedUnits = [];
@@ -28,6 +28,9 @@ class Unit {
     this.selected = false;
     this.moveTargetX = x;
     this.moveTargetY = y;
+    this.moveStartX = x;
+    this.moveStartY = y;
+    this.moveSlope;
   }
 
   move(dx, dy) {
@@ -39,6 +42,7 @@ class Unit {
     if (!this.selected || (this.moveTargetX-this.x===0 && this.moveTargetY-this.y===0)) {
       return;
     }
+    
     if (abs(this.moveTargetX-this.x) > abs(this.moveTargetY-this.y)) {
       if (this.moveTargetX-this.x > 0) {
         this.move(1,0);
@@ -137,8 +141,11 @@ function selectUnitsInArea(x,y) {
 
 function moveSelectedUnits(x, y) {
   for (let u of selectedUnits) {
+    u.moveStartX = u.x;
+    u.moveStartY = u.y;
     u.moveTargetX = x;
     u.moveTargetY = y;
+    u.moveSlope = (x-u.x)/(y-u.y);
     u.selected = true;
   }
 }
