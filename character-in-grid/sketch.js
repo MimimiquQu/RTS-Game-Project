@@ -43,17 +43,33 @@ class Unit {
       return;
     }
     
-    if (abs(this.moveTargetX-this.x) > abs(this.moveTargetY-this.y)) {
+    if (this.moveSlope > 0) {
       if (this.moveTargetX-this.x > 0) {
-        this.move(1,0);
+        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<moveSlope) {
+          this.move(1,0);
+        } else {
+          this.move(0,1);
+        }
       } else {
-        this.move(-1,0);
+        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<moveSlope) {
+          this.move(-1,0);
+        } else {
+          this.move(0,-1);
+        }
       }
     } else {
-      if (this.moveTargetY-this.y > 0) {
-        this.move(0,1);
+      if (this.moveTargetX-this.x > 0) {
+        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<moveSlope) {
+          this.move(0,-1);
+        } else {
+          this.move(1,0);
+        }
       } else {
-        this.move(0,-1);
+        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<moveSlope) {
+          this.move(0,1);
+        } else {
+          this.move(-1,0);
+        }
       }
     }
   }
@@ -145,7 +161,7 @@ function moveSelectedUnits(x, y) {
     u.moveStartY = u.y;
     u.moveTargetX = x;
     u.moveTargetY = y;
-    u.moveSlope = (x-u.x)/(y-u.y);
+    u.moveSlope = (y-u.y)/(x-u.x);
     u.selected = true;
   }
 }
