@@ -1,9 +1,10 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 20;
+const CELL_SIZE = 40;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
 
+let canvas;
 let grid;
 let rows;
 let cols;
@@ -42,16 +43,38 @@ class Unit {
     if (!this.selected || (this.moveTargetX-this.x===0 && this.moveTargetY-this.y===0)) {
       return;
     }
-    
+
+    // EDGE CASE: if the path is a strait line
+    // in this case, we can't use our "Slope method" anymore, because the slope can be undefined.
+    if (this.moveTargetX-this.x===0) {
+      if (this.moveTargetY-this.y>0) {
+        this.move(0,1);
+      } else {
+        this.move(0,-1);
+      }
+    }
+    if (this.moveTargetY-this.y===0) {
+      if (this.moveTargetX-this.x>0) {
+        this.move(1,0);
+      } else {
+        this.move(-1,0);
+      }
+    }
+    // if the path isn't a strait line
+    // Use "Tschumi's Slope Pathfinding Algorithm": 
+      // Draw the diagonal line connecting the starting and ending positions, that's the path the unit will trace. Call the slope of this line "moveSlope"
+      // Then, before each move, calculate the slope of the line connecting the current location and the destination. (Assuming moveSlope>0)If the current slope < moveSlope then move in the x-direction, otherwise the y-direction.
+      // This ensures that the movement in each direction(x amd y) are "evenly distributed", so that the overall path is as straight as it can be. 
+
     if (this.moveSlope > 0) {
       if (this.moveTargetX-this.x > 0) {
-        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<moveSlope) {
+        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<this.moveSlope) {
           this.move(1,0);
         } else {
           this.move(0,1);
         }
       } else {
-        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<moveSlope) {
+        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<this.moveSlope) {
           this.move(-1,0);
         } else {
           this.move(0,-1);
@@ -59,13 +82,13 @@ class Unit {
       }
     } else {
       if (this.moveTargetX-this.x > 0) {
-        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<moveSlope) {
+        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<this.moveSlope) {
           this.move(0,-1);
         } else {
           this.move(1,0);
         }
       } else {
-        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<moveSlope) {
+        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<this.moveSlope) {
           this.move(0,1);
         } else {
           this.move(-1,0);
@@ -73,6 +96,8 @@ class Unit {
       }
     }
   }
+
+    
 
   render() {
     fill("blue");
@@ -91,7 +116,8 @@ function preload() {
 
 
 function setup() {
-  createCanvas(0.9*windowWidth, 0.9*windowHeight);
+  canvas = createCanvas(0.9*windowWidth, 0.9*windowHeight);
+  canvas.elt.addEventListener("contextmenu", (e) => e.preventDefault()); // Asked ChatGPT how to disable the content table when right clicking. Basically, if there's a context table tries to pop up, we block the event so it doesn't show up with this preventDefault() function.
   angleMode(DEGREES);
   cols = floor(width/CELL_SIZE);
   rows = floor(height/CELL_SIZE);
