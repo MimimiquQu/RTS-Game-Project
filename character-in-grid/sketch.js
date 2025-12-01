@@ -52,6 +52,7 @@ class Unit {
       } else {
         this.move(0,-1);
       }
+      return;
     }
     if (this.moveTargetY-this.y===0) {
       if (this.moveTargetX-this.x>0) {
@@ -59,12 +60,13 @@ class Unit {
       } else {
         this.move(-1,0);
       }
+      return;
     }
     // if the path isn't a strait line
     // Use "Tschumi's Slope Pathfinding Algorithm": 
       // Draw the diagonal line connecting the starting and ending positions, that's the path the unit will trace. Call the slope of this line "moveSlope"
       // Then, before each move, calculate the slope of the line connecting the current location and the destination. (Assuming moveSlope>0)If the current slope < moveSlope then move in the x-direction, otherwise the y-direction.
-      // This ensures that the movement in each direction(x amd y) are "evenly distributed", so that the overall path is as straight as it can be. 
+      // This ensures that the movement in each direction(x and y) are "evenly distributed", so that the overall path is as straight as it can be. 
 
     if (this.moveSlope > 0) {
       if (this.moveTargetX-this.x > 0) {
@@ -94,6 +96,7 @@ class Unit {
           this.move(-1,0);
         }
       }
+      return;
     }
   }
 
@@ -122,7 +125,7 @@ function setup() {
   cols = floor(width/CELL_SIZE);
   rows = floor(height/CELL_SIZE);
   grid = generateGrid(rows, cols);
-  for (let i=0; i<20; i++) {
+  for (let i=0; i<1; i++) {
     units.push(new Unit(i%cols, floor(i/cols)));
   }
   renderGrid();
@@ -132,7 +135,6 @@ function setup() {
 
 
 function draw() {
-  console.log(command);
   background("blue");
   renderGrid();
   unitsLoop();
@@ -183,6 +185,7 @@ function selectUnitsInArea(x,y) {
 
 function moveSelectedUnits(x, y) {
   for (let u of selectedUnits) {
+    console.log(u.x, u.y, x, y, u.moveSlope);
     u.moveStartX = u.x;
     u.moveStartY = u.y;
     u.moveTargetX = x;
