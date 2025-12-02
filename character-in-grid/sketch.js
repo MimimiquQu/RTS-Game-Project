@@ -1,8 +1,9 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 40;
+const CELL_SIZE = 20;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
+const UNIT_DISPLAY_SCALE = 2;
 
 let canvas;
 let grid;
@@ -11,7 +12,7 @@ let cols;
 let grassImg;
 let pavingImg;
 let grassDensity = 0.0;
-let unitSpeed = 5; // grids per second
+let unitSpeed = 20; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
 let selectedUnits = [];
@@ -67,16 +68,17 @@ class Unit {
       // Draw the diagonal line connecting the starting and ending positions, that's the path the unit will trace. Call the slope of this line "moveSlope"
       // Then, before each move, calculate the slope of the line connecting the current location and the destination. (Assuming moveSlope>0)If the current slope < moveSlope then move in the x-direction, otherwise the y-direction.
       // This ensures that the movement in each direction(x and y) are "evenly distributed", so that the overall path is as straight as it can be. 
-
+    
+    let currentSlope = (this.moveTargetY-this.y)/(this.moveTargetX-this.x); // this is the currentSlope of the line connecting the current position and the target.
     if (this.moveSlope > 0) {
       if (this.moveTargetX-this.x > 0) {
-        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<this.moveSlope) {
+        if (currentSlope<this.moveSlope) {
           this.move(1,0);
         } else {
           this.move(0,1);
         }
       } else {
-        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<this.moveSlope) {
+        if (currentSlope<this.moveSlope) {
           this.move(-1,0);
         } else {
           this.move(0,-1);
@@ -84,13 +86,13 @@ class Unit {
       }
     } else {
       if (this.moveTargetX-this.x > 0) {
-        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<this.moveSlope) {
+        if (currentSlope<this.moveSlope) {
           this.move(0,-1);
         } else {
           this.move(1,0);
         }
       } else {
-        if ((this.moveTargetY-this.y)/(this.moveTargetX-this.x)<this.moveSlope) {
+        if (currentSlope<this.moveSlope) {
           this.move(0,1);
         } else {
           this.move(-1,0);
@@ -104,7 +106,7 @@ class Unit {
 
   render() {
     fill("blue");
-    circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE);
+    circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE*UNIT_DISPLAY_SCALE);
   }
 }
 
@@ -185,7 +187,7 @@ function selectUnitsInArea(x,y) {
 
 function moveSelectedUnits(x, y) {
   for (let u of selectedUnits) {
-    console.log(u.x, u.y, x, y, u.moveSlope);
+    // console.log(u.x, u.y, x, y, u.moveSlope);
     u.moveStartX = u.x;
     u.moveStartY = u.y;
     u.moveTargetX = x;
