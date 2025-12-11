@@ -3,7 +3,7 @@
 const CELL_SIZE = 20;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
-const UNIT_DISPLAY_SCALE = 2;
+const UNIT_DISPLAY_SCALE = 1.1;
 
 let canvas;
 let grid;
@@ -11,7 +11,7 @@ let rows;
 let cols;
 let grassImg;
 let pavingImg;
-let grassDensity = 0.0;
+let grassDensity = 0.1;
 let unitSpeed = 20; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
@@ -32,7 +32,6 @@ class Unit {
     this.moveTargetY = y;
     this.moveStartX = x;
     this.moveStartY = y;
-    this.moveSlope;
   }
 
   move(dx, dy) {
@@ -40,66 +39,13 @@ class Unit {
     if(this.y+dy <= rows-1 && this.y+dy >= 0) this.y += dy;
   }
 
+  // use A* algorithm (Hueristic) for pathfinding
   pathfind() {
-    if (!this.selected || (this.moveTargetX-this.x===0 && this.moveTargetY-this.y===0)) {
-      return;
-    }
-
-    // EDGE CASE: if the path is a strait line
-    // in this case, we can't use our "Slope method" anymore, because the slope can be undefined.
-    if (this.moveTargetX-this.x===0) {
-      if (this.moveTargetY-this.y>0) {
-        this.move(0,1);
-      } else {
-        this.move(0,-1);
-      }
-      return;
-    }
-    if (this.moveTargetY-this.y===0) {
-      if (this.moveTargetX-this.x>0) {
-        this.move(1,0);
-      } else {
-        this.move(-1,0);
-      }
-      return;
-    }
-    // if the path isn't a strait line
-    // Use "Tschumi's Slope Pathfinding Algorithm": 
-      // Draw the diagonal line connecting the starting and ending positions, that's the path the unit will trace. Call the slope of this line "moveSlope"
-      // Then, before each move, calculate the slope of the line connecting the current location and the destination. (Assuming moveSlope>0)If the current slope < moveSlope then move in the x-direction, otherwise the y-direction.
-      // This ensures that the movement in each direction(x and y) are "evenly distributed", so that the overall path is as straight as it can be. 
+    let openNodes = [];
+    let closedNodes = [];
+    let current = [this.moveStartX, this.moveStartY];
+    openNodes.push(current);
     
-    let currentSlope = (this.moveTargetY-this.y)/(this.moveTargetX-this.x); // this is the currentSlope of the line connecting the current position and the target.
-    if (this.moveSlope > 0) {
-      if (this.moveTargetX-this.x > 0) {
-        if (currentSlope<this.moveSlope) {
-          this.move(1,0);
-        } else {
-          this.move(0,1);
-        }
-      } else {
-        if (currentSlope<this.moveSlope) {
-          this.move(-1,0);
-        } else {
-          this.move(0,-1);
-        }
-      }
-    } else {
-      if (this.moveTargetX-this.x > 0) {
-        if (currentSlope<this.moveSlope) {
-          this.move(0,-1);
-        } else {
-          this.move(1,0);
-        }
-      } else {
-        if (currentSlope<this.moveSlope) {
-          this.move(0,1);
-        } else {
-          this.move(-1,0);
-        }
-      }
-      return;
-    }
   }
 
     
@@ -145,7 +91,7 @@ function draw() {
 
 
 function mousePressed() {
-  let position = coordinateToIndex(mouseX, mouseY);
+  let position = getCoordinate(mouseX, mouseY);
   let x = position[0];
   let y = position[1];
   // console.log(x, y);
@@ -192,7 +138,6 @@ function moveSelectedUnits(x, y) {
     u.moveStartY = u.y;
     u.moveTargetX = x;
     u.moveTargetY = y;
-    u.moveSlope = (y-u.y)/(x-u.x);
     u.selected = true;
   }
 }
@@ -235,7 +180,7 @@ function renderGrid() {
   }
 }
 
-function coordinateToIndex(x, y) {
+function getCoordinate(x, y) {
   let index = [];
   index.push(max(0, min(cols-1, floor(x/CELL_SIZE))));
   index.push(max(0, min(rows-1, floor(y/CELL_SIZE))));
