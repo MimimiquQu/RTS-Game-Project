@@ -39,21 +39,43 @@ class Unit {
     if(this.y+dy <= rows-1 && this.y+dy >= 0) this.y += dy;
   }
 
-  // use A* algorithm (Hueristic) for pathfinding
-  pathfind() {
-    let openNodes = [];
-    let closedNodes = [];
-    let current = [this.moveStartX, this.moveStartY];
-    openNodes.push(current);
-    
-  }
-
-    
-
   render() {
     fill("blue");
     circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE*UNIT_DISPLAY_SCALE);
   }
+
+  // use A* algorithm (Hueristic) for pathfinding
+  pathfind() {
+    let openNodes = []; // nodes that are waiting to be evaulated(searched)
+    let closedNodes = []; // nodes that we have already searched
+    let current = new pathNode(this.moveStartX, this.moveStartY); 
+    let target = new pathNode(this.moveTargetX, this.moveTargetY);
+    openNodes.push(current);
+    
+
+    // pathfinding loop, doesn't exit until the unit reaches the target
+    while (this.selected) {
+      current = openNodes[0];
+      current.getNeighbors();
+      if (current.x === target.x && current.y === target.y) {
+        
+      }
+    }
+  }
+}
+
+class pathNode {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.parent;
+    this.neighbors;
+  }
+
+  getNeighbors() {
+    if ()
+  }
+
 }
 
 
