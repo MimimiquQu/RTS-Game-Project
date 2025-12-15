@@ -51,14 +51,29 @@ class Unit {
     let current = new pathNode(this.moveStartX, this.moveStartY); 
     let target = new pathNode(this.moveTargetX, this.moveTargetY);
     openNodes.push(current);
+    current.getNeighbors();
     
 
     // pathfinding loop, doesn't exit until the unit reaches the target
     while (this.selected) {
       current = openNodes[0];
       current.getNeighbors();
-      if (current.x === target.x && current.y === target.y) {
-        
+      if (current.x === target.x && current.y === target.y) { // current === target, path has been found!
+        return;
+      }
+      // loop through each neighbor
+      for (let nb of current.neighbors) {
+        if (nb.tileType != OPEN_TILE || closedNodes.includes(nb)) {
+          continue;
+        }
+        if (!openNodes.includes(nb)) { // if new path to neighbor is shorter, OR, neighbor is not in OPEN.
+          nb.getFCost();
+          nb.parent = current;
+          // if neighbor isn't in OPEN, add it
+          if (!openNodes.includes(nb)) {
+            openNodes.push(nb);
+          }
+        }
       }
     }
   }
@@ -70,12 +85,43 @@ class pathNode {
     this.y = y;
     this.parent;
     this.neighbors;
+    this.tileType = grid[x][y];
+    this.fCost;
+    this.gCost;
+    this.hCost;
+    this.parent;
   }
-
+  // get the neighbors of THIS pathNode
   getNeighbors() {
-    if ()
+    if (this.x>0) {
+      neighbors.push(new pathNode(this.x-1, this.y));
+    }
+    if (this.x<cols-1) {
+      neighbors.push(new pathNode(this.x+1, this.y));
+    }
+    if (this.y>0) {
+      neighbors.push(new pathNode(this.x, this.y-1));
+    }
+    if (this.y<rows-1) {
+      neighbors.push(new pathNode(this.x, this.y+1));
+    }
+    if (this.x>0 && this.y>0) {
+      neighbors.push(new pathNode(this.x-1, this.y-1));
+    }
+    if (this.x<cols-1 && this.y<rows-1) {
+      neighbors.push(new pathNode(this.x+1, this.y+1));
+    }
+    if (this.x<cols-1 && this.y>0) {
+      neighbors.push(new pathNode(this.x+1, this.y-1));
+    }
+    if (this.x>0 && this.y<rows-1) {
+      neighbors.push(new pathNode(this.x-1, this.y+1));
+    }
   }
 
+  getFCost() {
+
+  }
 }
 
 
