@@ -56,23 +56,36 @@ class Unit {
 
     // pathfinding loop, doesn't exit until the unit reaches the target
     while (this.selected) {
-      current = openNodes[0];
-      current.getNeighbors();
+      // if OPEN is empty, no path exists, exit.
+      if (openNodes.length === 0) {
+        return;
+      }
+      current = openNodes[0]; // current = the node with least f value in open
+      openNodes.splice(0);
+
       if (current.x === target.x && current.y === target.y) { // current === target, path has been found!
         return;
       }
+
+      current.getNeighbors();
       // loop through each neighbor
       for (let nb of current.neighbors) {
         if (nb.tileType != OPEN_TILE || closedNodes.includes(nb)) {
           continue;
         }
-        if (!openNodes.includes(nb)) { // if new path to neighbor is shorter, OR, neighbor is not in OPEN.
-          nb.getFCost();
+        
+        let tentativeG = current.gCost + current.gridDist(nb); // calculate tentative g-cost
+        if (!openNodes.includes(nb)) {
+          openNodes.push(nb);
           nb.parent = current;
-          // if neighbor isn't in OPEN, add it
-          if (!openNodes.includes(nb)) {
-            openNodes.push(nb);
-          }
+          nb.gCost = tentativeG;
+          nb.hCost = nb.gridDist(target); // calcualate the h-cost of the neighbor: defined as the heuristic distance between the nb and the target.
+          nb.fCost = nb.gCost + nb.hCost; // caluclate the f-cost: defined as g+h
+
+        } else if (tentativeG < nb.gCost) {
+          // if the tentative G-cost is smaller than that of the neighbor, then it indicates that a BETTER PATH to this neighbor has been found.
+          nb.parent = current;
+          // update g, recalculate h and f.
         }
       }
     }
@@ -119,8 +132,10 @@ class pathNode {
     }
   }
 
-  getFCost() {
-
+  gridDist(node) {
+    // each diagonal step is distance 14, horizontal is 10. This is bc a diagonal step is sqrt(2) times the horizontal step, which is appriximately 1.414=1.4
+    let diag = min(abs(node.x-this.x), abs(node.y, this.y));
+    return 14*diag + 10*(max(abs(node.x-this.x), abs(node.y, this.y))-diag);
   }
 }
 
