@@ -11,7 +11,7 @@ let rows;
 let cols;
 let grassImg;
 let pavingImg;
-let grassDensity = 0.1;
+let grassDensity = 0.0;
 let unitSpeed = 20; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
@@ -27,7 +27,7 @@ class Unit {
     this.speed = unitSpeed;
     this.deltaTime = 1/unitSpeed;
     this.lastMovedTime = 0;
-    this.selected = false;
+    this.status = "idle"; // a finite status machine of what command the unit is currently executing. "idle" for nothing. "selected", "pathfinding", "move", "attack", etc.
     this.moveTargetX = x;
     this.moveTargetY = y;
     this.moveStartX = x;
@@ -46,25 +46,28 @@ class Unit {
 
   // use A* algorithm (Hueristic) for pathfinding
   pathfind() {
+    console.log(1);
     let openNodes = []; // nodes that are waiting to be evaulated(searched)
     let closedNodes = []; // nodes that we have already searched
     let current = new pathNode(this.moveStartX, this.moveStartY); 
+    current.gCost = 0;
     let target = new pathNode(this.moveTargetX, this.moveTargetY);
     openNodes.push(current);
     current.getNeighbors();
     
 
     // pathfinding loop, doesn't exit until the unit reaches the target
-    while (this.selected) {
+    while (this.status === "pathfinding") {
       // if OPEN is empty, no path exists, exit.
       if (openNodes.length === 0) {
-        return;
+        return -1; // code for "No path"
       }
       current = openNodes[0]; // current = the node with least f value in open
       openNodes.splice(0);
+      closedNodes.push(current);
 
       if (current.x === target.x && current.y === target.y) { // current === target, path has been found!
-        return;
+        break;
       }
 
       current.getNeighbors();
@@ -86,9 +89,21 @@ class Unit {
           // if the tentative G-cost is smaller than that of the neighbor, then it indicates that a BETTER PATH to this neighbor has been found.
           nb.parent = current;
           // update g, recalculate h and f.
+          nb.gCost = tentativeG;
+          nb.fCost = nb.gCost + nb.hCost;
         }
       }
     }
+
+    // reconstruct the path by tracing the parents of nodes recursively.
+    let path = [];
+    let node = target; // create a temporary looping variable "node", and its start value is target
+    path.unshift(node);
+    while(node.parent != undefined) {
+      node = node.parent;
+      path.unshift(node);
+    }
+    return path;
   }
 }
 
@@ -97,7 +112,7 @@ class pathNode {
     this.x = x;
     this.y = y;
     this.parent;
-    this.neighbors;
+    this.neighbors = [];
     this.tileType = grid[x][y];
     this.fCost;
     this.gCost;
@@ -107,28 +122,28 @@ class pathNode {
   // get the neighbors of THIS pathNode
   getNeighbors() {
     if (this.x>0) {
-      neighbors.push(new pathNode(this.x-1, this.y));
+      this.neighbors.push(new pathNode(this.x-1, this.y));
     }
     if (this.x<cols-1) {
-      neighbors.push(new pathNode(this.x+1, this.y));
+      this.neighbors.push(new pathNode(this.x+1, this.y));
     }
     if (this.y>0) {
-      neighbors.push(new pathNode(this.x, this.y-1));
+      this.neighbors.push(new pathNode(this.x, this.y-1));
     }
     if (this.y<rows-1) {
-      neighbors.push(new pathNode(this.x, this.y+1));
+      this.neighbors.push(new pathNode(this.x, this.y+1));
     }
     if (this.x>0 && this.y>0) {
-      neighbors.push(new pathNode(this.x-1, this.y-1));
+      this.neighbors.push(new pathNode(this.x-1, this.y-1));
     }
     if (this.x<cols-1 && this.y<rows-1) {
-      neighbors.push(new pathNode(this.x+1, this.y+1));
+      this.neighbors.push(new pathNode(this.x+1, this.y+1));
     }
     if (this.x<cols-1 && this.y>0) {
-      neighbors.push(new pathNode(this.x+1, this.y-1));
+      this.neighbors.push(new pathNode(this.x+1, this.y-1));
     }
     if (this.x>0 && this.y<rows-1) {
-      neighbors.push(new pathNode(this.x-1, this.y+1));
+      this.neighbors.push(new pathNode(this.x-1, this.y+1));
     }
   }
 
@@ -193,8 +208,9 @@ function mousePressed() {
 
 function unitsLoop() {
   for (let u of units) {
-    if (millis()/1000 - u.lastMovedTime >= u.deltaTime) {
-      u.pathfind();
+    console.log(u.status);
+    if ((millis()/1000 - u.lastMovedTime >= u.deltaTime) && u.status === "pathfinding") {
+      console.log(u.pathfind());
       u.lastMovedTime = millis()/1000;
     }
     u.render();
@@ -208,6 +224,7 @@ function selectUnitsInArea(x,y) {
     // console.log(u);
     if ((u.x === x) && (u.y === y)) {
       targetUnits.push(u);
+      u.status = "selected";
     }
   }
   // console.log(targetUnits);
@@ -221,7 +238,7 @@ function moveSelectedUnits(x, y) {
     u.moveStartY = u.y;
     u.moveTargetX = x;
     u.moveTargetY = y;
-    u.selected = true;
+    u.status = "pathfinding";
   }
 }
 
