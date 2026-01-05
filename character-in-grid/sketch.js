@@ -90,7 +90,7 @@ class Unit {
           nb.parent = current;
           // update g, recalculate h and f.
           nb.gCost = tentativeG;
-          nb.fCost = nb.gCost + nb.hCost;
+          nb.fCost = nb.gCost + nb.hCost;   
         }
       }
     }
