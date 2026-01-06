@@ -33,7 +33,6 @@ class Unit {
     this.moveStartX = x;
     this.moveStartY = y;
   }
-
   move(dx, dy) {
     if(this.x+dx <= cols-1 && this.x+dx >= 0) this.x += dx;
     if(this.y+dy <= rows-1 && this.y+dy >= 0) this.y += dy;
@@ -71,6 +70,8 @@ class Unit {
       }
 
       current.getNeighbors();
+
+      // Correction: instead of looping through each neighbor, add all neighbors to OPEN.
       // loop through each neighbor
       for (let nb of current.neighbors) {
         if (nb.tileType != OPEN_TILE || closedNodes.includes(nb)) {
