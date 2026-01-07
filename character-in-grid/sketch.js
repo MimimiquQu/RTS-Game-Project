@@ -46,29 +46,39 @@ class Unit {
   // use A* algorithm (Hueristic) for pathfinding
   pathfind() {
     console.log(1);
+    // create an array of all nodes in the entire grid, so that we can reference them later without duplicating them.
+    let nodeGrid = [];
+    for (let i=0; i<cols; i++) {
+      nodeGrid.push([]);
+      for (let j=0; j<rows; j++) {
+        nodeGrid[i].push(new pathNode(i,j));
+      }
+    }
+    
     let openNodes = []; // nodes that are waiting to be evaulated(searched)
     let closedNodes = []; // nodes that we have already searched
-    let current = new pathNode(this.moveStartX, this.moveStartY); 
+    let current = nodeGrid[this.moveStartX][this.moveStartY]; 
     current.gCost = 0;
-    let target = new pathNode(this.moveTargetX, this.moveTargetY);
-    openNodes.push(current);
+    let target = nodeGrid[this.moveTargetX][this.moveTargetY];
+    openNodes.push(current); // later, make this an "enqueue" function like that in a priority queue, bascially when adding the element, find the appropriate place for it based on priority(determined by f-cost, tie-breaked by lowest h-cost)
     current.getNeighbors();
     
 
     // pathfinding loop, doesn't exit until the unit reaches the target
     while (this.status === "pathfinding") {
-      // if OPEN is empty, no path exists, exit.
-      if (openNodes.length === 0) {
-        return -1; // code for "No path"
-      }
-      current = openNodes[0]; // current = the node with least f value in open
-      openNodes.splice(0);
-      closedNodes.push(current);
-
+      // check if target is reached
       if (current.x === target.x && current.y === target.y) { // current === target, path has been found!
         break;
       }
 
+      // if OPEN is empty, no path exists, exit.
+      if (openNodes.length === 0) {
+        return -1; // code for "No path"
+      }
+
+      current = openNodes[0]; // current = the node with least f value in open
+      openNodes.splice(0);
+      closedNodes.push(current);
       current.getNeighbors();
 
       // Correction: instead of looping through each neighbor, add all neighbors to OPEN.
@@ -123,28 +133,28 @@ class pathNode {
   // get the neighbors of THIS pathNode
   getNeighbors() {
     if (this.x>0) {
-      this.neighbors.push(new pathNode(this.x-1, this.y));
+      this.neighbors.push(nodeGrid[this.x-1][this.y]);
     }
     if (this.x<cols-1) {
-      this.neighbors.push(new pathNode(this.x+1, this.y));
+      this.neighbors.push(nodeGrid[this.x+1][this.y]);
     }
     if (this.y>0) {
-      this.neighbors.push(new pathNode(this.x, this.y-1));
+      this.neighbors.push(nodeGrid[this.x][this.y-1]);
     }
     if (this.y<rows-1) {
-      this.neighbors.push(new pathNode(this.x, this.y+1));
+      this.neighbors.push(nodeGrid[this.x][this.y+1]);
     }
     if (this.x>0 && this.y>0) {
-      this.neighbors.push(new pathNode(this.x-1, this.y-1));
+      this.neighbors.push(nodeGrid[this.x-1][this.y-1]);
     }
     if (this.x<cols-1 && this.y<rows-1) {
-      this.neighbors.push(new pathNode(this.x+1, this.y+1));
+      this.neighbors.push(nodeGrid[this.x+1][this.y+1]);
     }
     if (this.x<cols-1 && this.y>0) {
-      this.neighbors.push(new pathNode(this.x+1, this.y-1));
+      this.neighbors.push(nodeGrid[this.x+1][this.y-1]);
     }
     if (this.x>0 && this.y<rows-1) {
-      this.neighbors.push(new pathNode(this.x-1, this.y+1));
+      this.neighbors.push(nodeGrid[this.x-1][this.y+1]);
     }
   }
 
@@ -211,7 +221,7 @@ function unitsLoop() {
   for (let u of units) {
     console.log(u.status);
     if ((millis()/1000 - u.lastMovedTime >= u.deltaTime) && u.status === "pathfinding") {
-      console.log(u.pathfind());
+      // console.log(u.pathfind());
       u.lastMovedTime = millis()/1000;
     }
     u.render();
