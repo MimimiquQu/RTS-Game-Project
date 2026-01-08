@@ -90,7 +90,7 @@ class Unit {
         
         let tentativeG = current.gCost + current.gridDist(nb); // calculate tentative g-cost
         if (!openNodes.includes(nb)) {
-          openNodes.push(nb);
+          openNodes.push(nb); // again, change to enqueue() later.
           nb.parent = current;
           nb.gCost = tentativeG;
           nb.hCost = nb.gridDist(target); // calcualate the h-cost of the neighbor: defined as the heuristic distance between the nb and the target.
@@ -110,7 +110,7 @@ class Unit {
     let path = [];
     let node = target; // create a temporary looping variable "node", and its start value is target
     path.unshift(node);
-    while(node.parent != undefined) {
+    while(node != nodeGrid[this.moveStartX][this.moveStartY]) {
       node = node.parent;
       path.unshift(node);
     }
