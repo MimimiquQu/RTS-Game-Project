@@ -18,7 +18,17 @@ let command = "null"; // this is the state variable that tracks the player's cur
 let selectedUnits = [];
 
 
-
+class Priorityarray extends Array {
+  // binary search + insert algorithm, so that the priority-array remains sorted w/ respect to fCost after the addition of the new node.
+  enqueue(node) {
+    let left = 0;
+    let right = this.length-1;
+    let mid = (left+right)/2;
+    if (this[mid].fCost === node.fCost && this[mid].hCost === node.hCost) { // if the node's f,h costs are the same as the element at mid position, simply insert the node there.
+      
+    }
+  }
+}
 
 class Unit {
   constructor(x, y) {
