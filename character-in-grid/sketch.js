@@ -20,12 +20,28 @@ let selectedUnits = [];
 
 class Priorityarray extends Array {
   // binary search + insert algorithm, so that the priority-array remains sorted w/ respect to fCost after the addition of the new node.
-  enqueue(node) {
-    let left = 0;
-    let right = this.length-1;
+  enqueue(node, left, right) { // INITIAL: left = 0, right = length-1
+    // when left bound coaligns with right bound, the binary search has completed and we simply insert it there.
+    if (left === right) {
+      this.splice(mid, 0, node);
+      return;
+    }
+
+    // Standard binary search with recursion
     let mid = (left+right)/2;
-    if (this[mid].fCost === node.fCost && this[mid].hCost === node.hCost) { // if the node's f,h costs are the same as the element at mid position, simply insert the node there.
-      
+    if (this[mid].fCost === node.fCost) { // if the node's f cost are the same, tiebreak by lowest h cost.
+      if (this[mid].hCost == node.hCost) { // if the node's f,h costs are the same as the element at mid position, simply insert the node there.
+        this.splice(mid, 0, node);
+        return;
+      } else if (this[mid].hCost < node.hCost) { // tiebreaking by lowest h cost
+        this.enqueue(node, mid, right);
+      } else {
+        this.enqueue(node, left, mid);
+      }
+    } else if (this[mid].fCost < node.fCost) { 
+      this.enqueue(node, mid, right);
+    } else {
+      this.enqueue(node, left, mid);
     }
   }
 }
@@ -65,7 +81,7 @@ class Unit {
       }
     }
     
-    let openNodes = []; // nodes that are waiting to be evaulated(searched)
+    let openNodes = new Priorityarray(); // nodes that are waiting to be evaulated(searched). I put them in a priority array(a class I created) so that we can use the enqueue function to push elements in while preserving its sorted sequence based on f-cost("priority")
     let closedNodes = []; // nodes that we have already searched
     let current = nodeGrid[this.moveStartX][this.moveStartY]; 
     current.gCost = 0;
@@ -231,7 +247,7 @@ function unitsLoop() {
   for (let u of units) {
     console.log(u.status);
     if ((millis()/1000 - u.lastMovedTime >= u.deltaTime) && u.status === "pathfinding") {
-      // console.log(u.pathfind());
+      console.log(u.pathfind());
       u.lastMovedTime = millis()/1000;
     }
     u.render();
