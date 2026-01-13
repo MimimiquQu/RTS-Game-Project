@@ -17,6 +17,10 @@ let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
 let selectedUnits = [];
 
+// create an array of all nodes in the entire grid, so that we can reference them later without duplicating them.
+let nodeGrid = [];
+
+
 
 class Priorityarray extends Array {
   // binary search + insert algorithm, so that the priority-array remains sorted w/ respect to fCost after the addition of the new node.
@@ -46,6 +50,7 @@ class Priorityarray extends Array {
   }
 }
 
+
 class Unit {
   constructor(x, y) {
     this.x = x;
@@ -71,15 +76,7 @@ class Unit {
 
   // use A* algorithm (Hueristic) for pathfinding
   pathfind() {
-    console.log(1);
-    // create an array of all nodes in the entire grid, so that we can reference them later without duplicating them.
-    let nodeGrid = [];
-    for (let i=0; i<cols; i++) {
-      nodeGrid.push([]);
-      for (let j=0; j<rows; j++) {
-        nodeGrid[i].push(new pathNode(i,j));
-      }
-    }
+    console.log(1); // 1 is the code for testing
     
     let openNodes = new Priorityarray(); // nodes that are waiting to be evaulated(searched). I put them in a priority array(a class I created) so that we can use the enqueue function to push elements in while preserving its sorted sequence based on f-cost("priority")
     let closedNodes = []; // nodes that we have already searched
@@ -87,7 +84,6 @@ class Unit {
     current.gCost = 0;
     let target = nodeGrid[this.moveTargetX][this.moveTargetY];
     openNodes.push(current); // later, make this an "enqueue" function like that in a priority queue, bascially when adding the element, find the appropriate place for it based on priority(determined by f-cost, tie-breaked by lowest h-cost)
-    current.getNeighbors();
     
 
     // pathfinding loop, doesn't exit until the unit reaches the target
@@ -105,7 +101,6 @@ class Unit {
       current = openNodes[0]; // current = the node with least f value in open
       openNodes.splice(0);
       closedNodes.push(current);
-      current.getNeighbors();
 
       // Correction: instead of looping through each neighbor, add all neighbors to OPEN.
       // loop through each neighbor
@@ -144,7 +139,7 @@ class Unit {
   }
 }
 
-class pathNode {
+class PathNode {
   constructor(x, y) {
     this.x = x;
     this.y = y;
@@ -156,7 +151,7 @@ class pathNode {
     this.hCost;
     this.parent;
   }
-  // get the neighbors of THIS pathNode
+  // get the neighbors of THIS PathNode
   getNeighbors() {
     if (this.x>0) {
       this.neighbors.push(nodeGrid[this.x-1][this.y]);
@@ -208,10 +203,28 @@ function setup() {
   cols = floor(width/CELL_SIZE);
   rows = floor(height/CELL_SIZE);
   grid = generateGrid(rows, cols);
+  renderGrid();
+  console.log(grid); //
+  
   for (let i=0; i<1; i++) {
     units.push(new Unit(i%cols, floor(i/cols)));
   }
-  renderGrid();
+
+  // create nodeGrid
+  for (let i=0; i<cols; i++) {
+    nodeGrid.push([]);
+    for (let j=0; j<rows; j++) {
+      let node = new PathNode(i,j);
+      nodeGrid[i].push(node);
+    }
+  }
+  // set the neighbors of each node using PathNode.getNeighbors()
+  for (let i=0; i<cols; i++) {
+    for (let j=0; j<rows; j++) {
+      nodeGrid[i][j].getNeighbors();
+    }
+  }
+  console.log(nodeGrid);
 }
 
 
@@ -247,7 +260,6 @@ function unitsLoop() {
   for (let u of units) {
     console.log(u.status);
     if ((millis()/1000 - u.lastMovedTime >= u.deltaTime) && u.status === "pathfinding") {
-      console.log(u.pathfind());
       u.lastMovedTime = millis()/1000;
     }
     u.render();
@@ -276,6 +288,8 @@ function moveSelectedUnits(x, y) {
     u.moveTargetX = x;
     u.moveTargetY = y;
     u.status = "pathfinding";
+    let path = u.pathfind(); // call A* pathfinding algorithm
+    console.log(path); // for debugging purposes, show the path
   }
 }
 
