@@ -1,6 +1,6 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 20;
+const CELL_SIZE = 50;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
 const UNIT_DISPLAY_SCALE = 1.1;
@@ -25,25 +25,27 @@ let nodeGrid = [];
 class Priorityarray extends Array {
   // binary search + insert algorithm, so that the priority-array remains sorted w/ respect to fCost after the addition of the new node.
   enqueue(node, left, right) { // INITIAL: left = 0, right = length-1
+    let mid = Math.floor((left+right)/2);
+
     // when left bound coaligns with right bound, the binary search has completed and we simply insert it there.
     if (left === right) {
-      this.splice(mid, 0, node);
+      this.splice(left, 0, node);
       return;
     }
 
     // Standard binary search with recursion
-    let mid = (left+right)/2;
+    
     if (this[mid].fCost === node.fCost) { // if the node's f cost are the same, tiebreak by lowest h cost.
       if (this[mid].hCost == node.hCost) { // if the node's f,h costs are the same as the element at mid position, simply insert the node there.
-        this.splice(mid, 0, node);
+        this.splice(left, 0, node);
         return;
       } else if (this[mid].hCost < node.hCost) { // tiebreaking by lowest h cost
-        this.enqueue(node, mid, right);
+        this.enqueue(node, mid+1, right);
       } else {
         this.enqueue(node, left, mid);
       }
     } else if (this[mid].fCost < node.fCost) { 
-      this.enqueue(node, mid, right);
+      this.enqueue(node, mid+1, right);
     } else {
       this.enqueue(node, left, mid);
     }
@@ -82,12 +84,15 @@ class Unit {
     let closedNodes = []; // nodes that we have already searched
     let current = nodeGrid[this.moveStartX][this.moveStartY]; 
     current.gCost = 0;
+    current.hCost = current.gridDist(nodeGrid[this.moveTargetX][this.moveTargetY]);
+    current.fCost = current.gCost + current.hCost;
     let target = nodeGrid[this.moveTargetX][this.moveTargetY];
-    openNodes.push(current); // later, make this an "enqueue" function like that in a priority queue, bascially when adding the element, find the appropriate place for it based on priority(determined by f-cost, tie-breaked by lowest h-cost)
+    openNodes.enqueue(current, 0, openNodes.length-1); // enqueue the current node into the openNodes priority array, bascially when adding the element, find the appropriate place for it based on priority(determined by f-cost, tie-breaked by lowest h-cost)
     
 
     // pathfinding loop, doesn't exit until the unit reaches the target
     while (this.status === "pathfinding") {
+      console.log(openNodes); //console.log the open nodes for debugging purposes
       // check if target is reached
       if (current.x === target.x && current.y === target.y) { // current === target, path has been found!
         break;
@@ -99,7 +104,7 @@ class Unit {
       }
 
       current = openNodes[0]; // current = the node with least f value in open
-      openNodes.splice(0);
+      openNodes.splice(0, 1);
       closedNodes.push(current);
 
       // Correction: instead of looping through each neighbor, add all neighbors to OPEN.
@@ -111,11 +116,12 @@ class Unit {
         
         let tentativeG = current.gCost + current.gridDist(nb); // calculate tentative g-cost
         if (!openNodes.includes(nb)) {
-          openNodes.push(nb); // again, change to enqueue() later.
+          // set parent to current, and set g,h,f costs.
           nb.parent = current;
           nb.gCost = tentativeG;
           nb.hCost = nb.gridDist(target); // calcualate the h-cost of the neighbor: defined as the heuristic distance between the nb and the target.
           nb.fCost = nb.gCost + nb.hCost; // caluclate the f-cost: defined as g+h
+          openNodes.enqueue(nb, 0, openNodes.length-1); // enqueue neighbor into open nodes
 
         } else if (tentativeG < nb.gCost) {
           // if the tentative G-cost is smaller than that of the neighbor, then it indicates that a BETTER PATH to this neighbor has been found.
@@ -181,8 +187,8 @@ class PathNode {
 
   gridDist(node) {
     // each diagonal step is distance 14, horizontal is 10. This is bc a diagonal step is sqrt(2) times the horizontal step, which is appriximately 1.414=1.4
-    let diag = min(abs(node.x-this.x), abs(node.y, this.y));
-    return 14*diag + 10*(max(abs(node.x-this.x), abs(node.y, this.y))-diag);
+    let diag = min(abs(node.x-this.x), abs(node.y-this.y));
+    return 14*diag + 10*(max(abs(node.x-this.x), abs(node.y-this.y))-diag);
   }
 }
 
