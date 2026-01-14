@@ -25,6 +25,11 @@ let nodeGrid = [];
 class Priorityarray extends Array {
   // binary search + insert algorithm, so that the priority-array remains sorted w/ respect to fCost after the addition of the new node.
   enqueue(node, left, right) { // INITIAL: left = 0, right = length-1
+    // if the array is currently empty, just push the node in.
+    if (this.length === 0) {
+      this.push(node);
+      return;
+    }
     let mid = Math.floor((left+right)/2);
 
     // when left bound coaligns with right bound, the binary search has completed and we simply insert it there.
@@ -65,10 +70,11 @@ class Unit {
     this.moveTargetY = y;
     this.moveStartX = x;
     this.moveStartY = y;
+    this.movePath;
   }
-  move(dx, dy) {
-    if(this.x+dx <= cols-1 && this.x+dx >= 0) this.x += dx;
-    if(this.y+dy <= rows-1 && this.y+dy >= 0) this.y += dy;
+  move(x, y) {
+    this.x = x;
+    this.y = y;
   }
 
   render() {
@@ -78,21 +84,22 @@ class Unit {
 
   // use A* algorithm (Hueristic) for pathfinding
   pathfind() {
-    console.log(1); // 1 is the code for testing
+    // console.log(1); // 1 is the code for testing
     
     let openNodes = new Priorityarray(); // nodes that are waiting to be evaulated(searched). I put them in a priority array(a class I created) so that we can use the enqueue function to push elements in while preserving its sorted sequence based on f-cost("priority")
     let closedNodes = []; // nodes that we have already searched
+    let target = nodeGrid[this.moveTargetX][this.moveTargetY];
     let current = nodeGrid[this.moveStartX][this.moveStartY]; 
     current.gCost = 0;
-    current.hCost = current.gridDist(nodeGrid[this.moveTargetX][this.moveTargetY]);
+    current.hCost = current.gridDist(target);
     current.fCost = current.gCost + current.hCost;
-    let target = nodeGrid[this.moveTargetX][this.moveTargetY];
+    // console.log(openNodes);
     openNodes.enqueue(current, 0, openNodes.length-1); // enqueue the current node into the openNodes priority array, bascially when adding the element, find the appropriate place for it based on priority(determined by f-cost, tie-breaked by lowest h-cost)
     
 
     // pathfinding loop, doesn't exit until the unit reaches the target
     while (this.status === "pathfinding") {
-      console.log(openNodes); //console.log the open nodes for debugging purposes
+      // console.log(openNodes); //console.log the open nodes for debugging purposes
       // check if target is reached
       if (current.x === target.x && current.y === target.y) { // current === target, path has been found!
         break;
@@ -121,6 +128,7 @@ class Unit {
           nb.gCost = tentativeG;
           nb.hCost = nb.gridDist(target); // calcualate the h-cost of the neighbor: defined as the heuristic distance between the nb and the target.
           nb.fCost = nb.gCost + nb.hCost; // caluclate the f-cost: defined as g+h
+          
           openNodes.enqueue(nb, 0, openNodes.length-1); // enqueue neighbor into open nodes
 
         } else if (tentativeG < nb.gCost) {
@@ -133,13 +141,13 @@ class Unit {
       }
     }
 
-    // reconstruct the path by tracing the parents of nodes recursively.
+    // reconstruct the path by tracing the parents of nodes recursively. PS: the path array starts from the target and ends at the start node.
     let path = [];
     let node = target; // create a temporary looping variable "node", and its start value is target
-    path.unshift(node);
+    path.push(node);
     while(node != nodeGrid[this.moveStartX][this.moveStartY]) {
       node = node.parent;
-      path.unshift(node);
+      path.push(node);
     }
     return path;
   }
@@ -210,7 +218,7 @@ function setup() {
   rows = floor(height/CELL_SIZE);
   grid = generateGrid(rows, cols);
   renderGrid();
-  console.log(grid); //
+  // console.log(grid); //
   
   for (let i=0; i<1; i++) {
     units.push(new Unit(i%cols, floor(i/cols)));
@@ -230,7 +238,7 @@ function setup() {
       nodeGrid[i][j].getNeighbors();
     }
   }
-  console.log(nodeGrid);
+  // console.log(nodeGrid);
 }
 
 
@@ -266,6 +274,8 @@ function unitsLoop() {
   for (let u of units) {
     console.log(u.status);
     if ((millis()/1000 - u.lastMovedTime >= u.deltaTime) && u.status === "pathfinding") {
+      u.move(u.movePath[u.movePath.length-1]);
+      u.movePath.splice(u.movePath.length-1, 1);
       u.lastMovedTime = millis()/1000;
     }
     u.render();
@@ -294,8 +304,8 @@ function moveSelectedUnits(x, y) {
     u.moveTargetX = x;
     u.moveTargetY = y;
     u.status = "pathfinding";
-    let path = u.pathfind(); // call A* pathfinding algorithm
-    console.log(path); // for debugging purposes, show the path
+    u.movePath = u.pathfind(); // call A* pathfinding algorithm
+    // console.log(path); // for debugging purposes, show the path
   }
 }
 
