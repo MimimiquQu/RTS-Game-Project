@@ -1,6 +1,6 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 50;
+const CELL_SIZE = 20;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
 const UNIT_DISPLAY_SCALE = 1.1;
@@ -11,11 +11,13 @@ let rows;
 let cols;
 let grassImg;
 let pavingImg;
-let grassDensity = 0.0;
-let unitSpeed = 20; // grids per second
+let grassDensity = 0.3;
+let unitSpeed = 15; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
 let selectedUnits = [];
+let mouseSelectCoord = new Array(4);
+let showSelectionBox = false;
 
 // create an array of all nodes in the entire grid, so that we can reference them later without duplicating them.
 let nodeGrid = [];
@@ -72,9 +74,11 @@ class Unit {
     this.moveStartY = y;
     this.movePath;
   }
-  move(x, y) {
-    this.x = x;
-    this.y = y;
+  move() {
+    this.x = this.movePath[this.movePath.length-1].x;
+    this.y = this.movePath[this.movePath.length-1].y;
+    this.movePath.splice(this.movePath.length-1, 1);
+    this.lastMovedTime = millis()/1000;
   }
 
   render() {
@@ -107,6 +111,7 @@ class Unit {
 
       // if OPEN is empty, no path exists, exit.
       if (openNodes.length === 0) {
+        this.status = "idle";
         return -1; // code for "No path"
       }
 
@@ -149,6 +154,7 @@ class Unit {
       node = node.parent;
       path.push(node);
     }
+    this.status = "moving"; // exit pathfinding state and enter moving state
     return path;
   }
 }
@@ -220,7 +226,7 @@ function setup() {
   renderGrid();
   // console.log(grid); //
   
-  for (let i=0; i<1; i++) {
+  for (let i=0; i<10; i++) {
     units.push(new Unit(i%cols, floor(i/cols)));
   }
 
@@ -253,41 +259,63 @@ function draw() {
 
 
 function mousePressed() {
-  let position = getCoordinate(mouseX, mouseY);
-  let x = position[0];
-  let y = position[1];
+  let pos = getCoordinate(mouseX, mouseY);
+
   // console.log(x, y);
   if (command === "null" && (mouseButton === LEFT)) {
     selectedUnits = selectUnitsInArea(x, y);
     command = "move";
   }
   if (command === "move" && (mouseButton === RIGHT)) {
-    moveSelectedUnits(x, y);
+    moveSelectedUnits(x, y, x, y); // the select boundary is just the cell at (x,y).
     command = "null";
   }
 }
 
+function mouseDragged() { // called when user drags their mouse to create a selection box
+  if (command === "null" && (mouseButton === LEFT)) {
+    let position = getCoordinate(mouseX, mouseY);
+    mouseSelectCoord[0] = position[0];
+    mouseSelectCoord[1] = position[1];
+    showSelectionBox = true;
+    command = "selecting"
+  }
+}
+
+
+function mouseReleased() { //called when user releases their mouse when box-selecting
+  if (command === "selecting" && (mouseButton === LEFT)) {
+    let position = getCoordinate(mouseX, mouseY);
+    mouseSelectCoord[2] = position[0];
+    mouseSelectCoord[3] = position[1];
+    showSelectionBox = false;
+    moveSelectedUnits(mouseSelectCoord[0], mouseSelectCoord[1], mouseSelectCoord[2], mouseSelectCoord[3]);
+    command = "moving";
+  }
+
+}
 
 
 
 function unitsLoop() {
   for (let u of units) {
     console.log(u.status);
-    if ((millis()/1000 - u.lastMovedTime >= u.deltaTime) && u.status === "pathfinding") {
-      u.move(u.movePath[u.movePath.length-1]);
-      u.movePath.splice(u.movePath.length-1, 1);
-      u.lastMovedTime = millis()/1000;
+    if ((millis()/1000 - u.lastMovedTime >= u.deltaTime) && u.status === "moving") {
+      // console.log(u.movePath[u.movePath.length-1]); // for debugging
+      if (u.movePath.length > 0) {
+        u.move();
+      }
     }
     u.render();
   }
 }
 
 
-function selectUnitsInArea(x,y) {
+function selectUnitsInArea(x1, y1, x2, y2) {
   let targetUnits = [];
   for (let u of units) {
     // console.log(u);
-    if ((u.x === x) && (u.y === y)) {
+    if ((u.x >= min(x1,x2)) && (u.x <= max(x1,x2)) && (u.y >= min(y1,y2)) && (u.y <= max(y1,y2))) {
       targetUnits.push(u);
       u.status = "selected";
     }
@@ -305,7 +333,7 @@ function moveSelectedUnits(x, y) {
     u.moveTargetY = y;
     u.status = "pathfinding";
     u.movePath = u.pathfind(); // call A* pathfinding algorithm
-    // console.log(path); // for debugging purposes, show the path
+    console.log(u.movePath); // for debugging purposes, show the path
   }
 }
 
