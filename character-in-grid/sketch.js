@@ -1,6 +1,6 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 20;
+const CELL_SIZE = 30;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
 const UNIT_DISPLAY_SCALE = 1.1;
@@ -11,8 +11,8 @@ let rows;
 let cols;
 let grassImg;
 let pavingImg;
-let grassDensity = 0.3;
-let unitSpeed = 15; // grids per second
+let grassDensity = 0.0;
+let unitSpeed = 10; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
 let selectedUnits = [];
@@ -83,6 +83,13 @@ class Unit {
 
   render() {
     fill("blue");
+    if (this.status === "selected" || this.status === "move") {
+      stroke("green");
+      strokeWeight(5);
+    } else {
+      stroke("black");
+      strokeWeight(1);
+    }
     circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE*UNIT_DISPLAY_SCALE);
   }
 
@@ -254,43 +261,57 @@ function draw() {
   background("blue");
   renderGrid();
   unitsLoop();
+  selectionBox();
+  console.log(command); // for debugging purposes
 }
 
 
 
 function mousePressed() {
   let pos = getCoordinate(mouseX, mouseY);
+  let x = pos[0];
+  let y = pos[1];
 
   // console.log(x, y);
   if (command === "null" && (mouseButton === LEFT)) {
-    selectedUnits = selectUnitsInArea(x, y);
-    command = "move";
+    selectedUnits = selectUnitsInArea(x, y, x, y);
+    if (selectedUnits.length > 0) {
+      command = "move";
+    } else {
+      command = "null";
+    }
   }
   if (command === "move" && (mouseButton === RIGHT)) {
-    moveSelectedUnits(x, y, x, y); // the select boundary is just the cell at (x,y).
+    moveSelectedUnits(x, y); // the select boundary is just the cell at (x,y).
     command = "null";
   }
 }
 
 function mouseDragged() { // called when user drags their mouse to create a selection box
   if (command === "null" && (mouseButton === LEFT)) {
-    let position = getCoordinate(mouseX, mouseY);
-    mouseSelectCoord[0] = position[0];
-    mouseSelectCoord[1] = position[1];
+    console.log("1"); // for debugging purposes
+    mouseSelectCoord[0] = mouseX;
+    mouseSelectCoord[1] = mouseY;
     showSelectionBox = true;
-    command = "selecting"
+    command = "selecting";
   }
 }
 
 
 function mouseReleased() { //called when user releases their mouse when box-selecting
   if (command === "selecting" && (mouseButton === LEFT)) {
-    let position = getCoordinate(mouseX, mouseY);
-    mouseSelectCoord[2] = position[0];
-    mouseSelectCoord[3] = position[1];
+    console.log("2"); // for debugging purposes
+    mouseSelectCoord[2] = mouseX;
+    mouseSelectCoord[3] = mouseY;
     showSelectionBox = false;
-    moveSelectedUnits(mouseSelectCoord[0], mouseSelectCoord[1], mouseSelectCoord[2], mouseSelectCoord[3]);
-    command = "moving";
+    let pos1 = getCoordinate(mouseSelectCoord[0], mouseSelectCoord[1]); // starting cell of selection
+    let pos2 = getCoordinate(mouseSelectCoord[2], mouseSelectCoord[3]); // ending cell of selection
+    selectedUnits = selectUnitsInArea(pos1[0], pos1[1], pos2[0], pos2[1]);
+    if (selectedUnits.length > 0) {
+      command = "move";
+    } else {
+      command = "null";
+    }
   }
 
 }
@@ -299,7 +320,7 @@ function mouseReleased() { //called when user releases their mouse when box-sele
 
 function unitsLoop() {
   for (let u of units) {
-    console.log(u.status);
+    // console.log(u.status); // for testing purposes
     if ((millis()/1000 - u.lastMovedTime >= u.deltaTime) && u.status === "moving") {
       // console.log(u.movePath[u.movePath.length-1]); // for debugging
       if (u.movePath.length > 0) {
@@ -311,7 +332,7 @@ function unitsLoop() {
 }
 
 
-function selectUnitsInArea(x1, y1, x2, y2) {
+function selectUnitsInArea(x1, y1, x2, y2) { // this function returns an array of selected units within the specified area, and ALSO clears the status of *selected*(boolean) for the previous selectedUnits.
   let targetUnits = [];
   for (let u of units) {
     // console.log(u);
@@ -334,6 +355,16 @@ function moveSelectedUnits(x, y) {
     u.status = "pathfinding";
     u.movePath = u.pathfind(); // call A* pathfinding algorithm
     console.log(u.movePath); // for debugging purposes, show the path
+  }
+}
+
+function selectionBox() {
+  if (showSelectionBox) {
+    rectMode(CORNERS);
+    noFill();
+    strokeWeight(3);
+    stroke("light green");
+    rect(mouseSelectCoord[0], mouseSelectCoord[1], mouseX, mouseY);
   }
 }
 
