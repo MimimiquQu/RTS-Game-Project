@@ -1,6 +1,6 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 30;
+const CELL_SIZE = 40;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
 const UNIT_DISPLAY_SCALE = 1.1;
@@ -11,8 +11,8 @@ let rows;
 let cols;
 let grassImg;
 let pavingImg;
-let grassDensity = 0.0;
-let unitSpeed = 10; // grids per second
+let grassDensity = 0.3;
+let unitSpeed = 5; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
 let selectedUnits = [];
@@ -67,7 +67,8 @@ class Unit {
     this.speed = unitSpeed;
     this.deltaTime = 1/unitSpeed;
     this.lastMovedTime = 0;
-    this.status = "idle"; // a finite status machine of what command the unit is currently executing. "idle" for nothing. "selected", "pathfinding", "move", "attack", etc.
+    this.status = "idle"; // a finite status machine of what command the unit is currently executing. "idle" for nothing. "pending", "pathfinding", "move", "attack", etc.
+    this.selected = false;
     this.moveTargetX = x;
     this.moveTargetY = y;
     this.moveStartX = x;
@@ -75,15 +76,19 @@ class Unit {
     this.movePath;
   }
   move() {
-    this.x = this.movePath[this.movePath.length-1].x;
-    this.y = this.movePath[this.movePath.length-1].y;
+    let next = this.movePath[this.movePath.length-1];
+    // check if destination is blocked by another unit.
+    if (grid[next.x][next.y] != OPEN_TILE) {
+
+    this.x = next.x;
+    this.y = next.y;
     this.movePath.splice(this.movePath.length-1, 1);
     this.lastMovedTime = millis()/1000;
   }
 
   render() {
     fill("blue");
-    if (this.status === "selected" || this.status === "move") {
+    if (this.selected) {
       stroke("green");
       strokeWeight(5);
     } else {
@@ -273,7 +278,7 @@ function mousePressed() {
   let y = pos[1];
 
   // console.log(x, y);
-  if (command === "null" && (mouseButton === LEFT)) {
+  if (mouseButton === LEFT) {
     selectedUnits = selectUnitsInArea(x, y, x, y);
     if (selectedUnits.length > 0) {
       command = "move";
@@ -281,14 +286,14 @@ function mousePressed() {
       command = "null";
     }
   }
+  
   if (command === "move" && (mouseButton === RIGHT)) {
     moveSelectedUnits(x, y); // the select boundary is just the cell at (x,y).
-    command = "null";
   }
 }
 
 function mouseDragged() { // called when user drags their mouse to create a selection box
-  if (command === "null" && (mouseButton === LEFT)) {
+  if (mouseButton === LEFT && command != "selecting") {
     console.log("1"); // for debugging purposes
     mouseSelectCoord[0] = mouseX;
     mouseSelectCoord[1] = mouseY;
@@ -325,6 +330,8 @@ function unitsLoop() {
       // console.log(u.movePath[u.movePath.length-1]); // for debugging
       if (u.movePath.length > 0) {
         u.move();
+      } else {
+        u.status = "idle"; // there is no more path for the unit to move along, so set the status to "idle"
       }
     }
     u.render();
@@ -333,12 +340,17 @@ function unitsLoop() {
 
 
 function selectUnitsInArea(x1, y1, x2, y2) { // this function returns an array of selected units within the specified area, and ALSO clears the status of *selected*(boolean) for the previous selectedUnits.
+  // clears the *selected* status of previously selected units
+  for (let u of selectedUnits) {
+    u.selected = false;
+  }
+
   let targetUnits = [];
   for (let u of units) {
     // console.log(u);
     if ((u.x >= min(x1,x2)) && (u.x <= max(x1,x2)) && (u.y >= min(y1,y2)) && (u.y <= max(y1,y2))) {
       targetUnits.push(u);
-      u.status = "selected";
+      u.selected = true;
     }
   }
   // console.log(targetUnits);
@@ -364,6 +376,7 @@ function selectionBox() {
     noFill();
     strokeWeight(3);
     stroke("light green");
+
     rect(mouseSelectCoord[0], mouseSelectCoord[1], mouseX, mouseY);
   }
 }
