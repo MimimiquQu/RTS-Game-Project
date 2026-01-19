@@ -2,6 +2,18 @@
 // Tschumi Qu 01/09/2026
 // Prototype RTS game with basic unit movement, selection, and combat mechanics. Has enemy AI and primitive controls system.
 
+
+// Extra for Experts:
+//  A* Pathfinding Algorithm: A hueristic-based graph-exploring and optimizing path-constructing algorithm
+//    I learned this in 4 days but took almost another week to implement. It can be found in Units.pathfind()
+
+//  "PriorityArray": a data structure I created myself, basically an array but instead of push, you can choose to "enqueue()" an element, 
+//   and what it does is that it adds the element to an array that's ALREADY sorted based on the PRIORITY(min/max value) of a certain quantity(in my example, it's fCost and hCost),
+//   and it inserts the added element in the correct position so that the array REMAINS SORTED after adding.
+//   this is made for A* pathfinding, as we need to always keep the openNodes prioritized based on lowest cost, so that the pathfinding algorithm can be as efficient as possible.
+//  defined in class PriorityArray.enqueue(), used in Units.Pathfinding.
+
+
 const CELL_SIZE = 30;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
@@ -26,7 +38,7 @@ let showSelectionBox = false;
 let nodeGrid = [];
 
 
-class Priorityarray extends Array {
+class PriorityArray extends Array {
   // binary search + insert algorithm, so that the priority-array remains sorted w/ respect to fCost after the addition of the new node.
   enqueue(node, left, right) { // INITIAL: left = 0, right = length-1
     // if the array is currently empty, just push the node in.
@@ -34,7 +46,7 @@ class Priorityarray extends Array {
       this.push(node);
       return;
     }
-    let mid = Math.floor((left+right)/2);
+    let mid = Math.floor((left + right) / 2);
 
     // when left bound coaligns with right bound, the binary search has completed and we simply insert it there.
     if (left === right) {
@@ -67,7 +79,7 @@ class Unit {
     this.x = x;
     this.y = y;
     this.speed = unitSpeed;
-    this.deltaTime = 1/unitSpeed;
+    this.deltaTime = 1 / unitSpeed;
     this.lastMovedTime = 0;
     this.status = "idle"; // a finite status machine of what command the unit is currently executing. "idle" for nothing. "pending", "pathfinding", "move", "attack", etc.
     this.selected = false;
@@ -101,7 +113,7 @@ class Unit {
         if (alt != null) {
           // found an alternative neighbor cell to move into
           // move to alternative spot and re-pathfind
-          this.excecuteMove(alt);
+          this.executeMove(alt);
           this.movePath = this.pathfind(nodeGrid[this.x][this.y], this.movePath[0]); // re-pathfind to original target
 
           if (this.movePath === null || this.movePath.length === 0) { // check if path is reached or invalid, in either case exit the moving status
@@ -115,13 +127,13 @@ class Unit {
     }
     
     // not blocked, move to next tile as usual
-    this.excecuteMove(next);
+    this.executeMove(next);
     this.movePath.splice(this.movePath.length-1, 1);
     this.waitTime = 0; // reset wait time upon successful movement
     
   }
 
-  excecuteMove(nextStep) { // this is where the actual movement takes place
+  executeMove(nextStep) { // this is where the actual movement takes place
     // erase old tile in occupation array
     if (occupation[this.x][this.y] === this) {
       occupation[this.x][this.y] = null;
@@ -130,7 +142,7 @@ class Unit {
     // change unit's position
     this.x = nextStep.x;
     this.y = nextStep.y;
-    this.lastMovedTime = millis()/1000;
+    this.lastMovedTime = millis() / 1000;
 
     //move to next tile
     occupation[nextStep.x][nextStep.y] = this;
@@ -145,7 +157,7 @@ class Unit {
   pathfind(start, target) { // takes in starting node and target node as parameters
     // console.log(1); // 1 is the code for testing
     
-    let openNodes = new Priorityarray(); // nodes that are waiting to be evaulated(searched). I put them in a priority array(a class I created) so that we can use the enqueue function to push elements in while preserving its sorted sequence based on f-cost("priority")
+    let openNodes = new PriorityArray(); // nodes that are waiting to be evaulated(searched). I put them in a priority array(a class I created) so that we can use the enqueue function to push elements in while preserving its sorted sequence based on f-cost("priority")
     let closedNodes = []; // nodes that we have already searched
     let current = start; // current node being evaulated
     current.gCost = 0;
@@ -218,7 +230,7 @@ class Unit {
       node = node.parent;
       path.push(node);
     }
-    path.splice(path.length-1, 1); // remove the starting node from the path, since the unit is already at the starting node
+    path.splice(path.length - 1, 1); // remove the starting node from the path, since the unit is already at the starting node
     this.status = "moving"; // exit pathfinding state and enter moving state
     return path;
   }
@@ -244,7 +256,7 @@ class Unit {
   distTo(otherUnit) { // gets euclidean distance to another unit
     let dx = otherUnit.x - this.x;
     let dy = otherUnit.y - this.y;
-    return sqrt(dx*dx + dy*dy);
+    return sqrt(dx * dx + dy * dy);
 
   }
 
@@ -263,9 +275,9 @@ class Unit {
 
     // if in range, shoot
     if (dist <= this.attackRange) {
-      if (millis()/1000 - this.lastAttackTime >= this.attackCooldown) {
+      if (millis() / 1000 - this.lastAttackTime >= this.attackCooldown) {
         this.attackTarget.hp -= this.damage;
-        this.lastAttackTime = millis()/1000;
+        this.lastAttackTime = millis() / 1000;
 
         //Target is killed
         if (this.attackTarget.hp <= 0) {
@@ -335,7 +347,7 @@ class Unit {
       stroke("black");
       strokeWeight(1);
     }
-    circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE*UNIT_DISPLAY_SCALE);
+    circle((this.x + 0.5) * CELL_SIZE, (this.y + 0.5) * CELL_SIZE, CELL_SIZE * UNIT_DISPLAY_SCALE);
 
     this.renderHealthBar();
   }
@@ -355,36 +367,36 @@ class PathNode {
   }
   // get the neighbors of THIS PathNode
   getNeighbors() {
-    if (this.x>0) {
-      this.neighbors.push(nodeGrid[this.x-1][this.y]);
+    if (this.x > 0) {
+      this.neighbors.push(nodeGrid[this.x - 1][this.y]);
     }
-    if (this.x<cols-1) {
-      this.neighbors.push(nodeGrid[this.x+1][this.y]);
+    if (this.x < cols - 1) {
+      this.neighbors.push(nodeGrid[this.x + 1][this.y]);
     }
-    if (this.y>0) {
-      this.neighbors.push(nodeGrid[this.x][this.y-1]);
+    if (this.y > 0) {
+      this.neighbors.push(nodeGrid[this.x][this.y - 1]);
     }
-    if (this.y<rows-1) {
-      this.neighbors.push(nodeGrid[this.x][this.y+1]);
+    if (this.y < rows - 1) {
+      this.neighbors.push(nodeGrid[this.x][this.y + 1]);
     }
-    if (this.x>0 && this.y>0) {
-      this.neighbors.push(nodeGrid[this.x-1][this.y-1]);
+    if (this.x > 0 && this.y > 0) {
+      this.neighbors.push(nodeGrid[this.x - 1][this.y - 1]);
     }
-    if (this.x<cols-1 && this.y<rows-1) {
-      this.neighbors.push(nodeGrid[this.x+1][this.y+1]);
+    if (this.x < cols - 1 && this.y < rows - 1) {
+      this.neighbors.push(nodeGrid[this.x + 1][this.y + 1]);
     }
-    if (this.x<cols-1 && this.y>0) {
-      this.neighbors.push(nodeGrid[this.x+1][this.y-1]);
+    if (this.x < cols - 1 && this.y > 0) {
+      this.neighbors.push(nodeGrid[this.x + 1][this.y - 1]);
     }
-    if (this.x>0 && this.y<rows-1) {
-      this.neighbors.push(nodeGrid[this.x-1][this.y+1]);
+    if (this.x > 0 && this.y < rows - 1) {
+      this.neighbors.push(nodeGrid[this.x - 1][this.y + 1]);
     }
   }
 
   gridDist(node) {
     // each diagonal step is distance 14, horizontal is 10. This is bc a diagonal step is sqrt(2) times the horizontal step, which is appriximately 1.414=1.4
-    let diag = min(abs(node.x-this.x), abs(node.y-this.y));
-    return 14*diag + 10*(max(abs(node.x-this.x), abs(node.y-this.y))-diag);
+    let diag = min(abs(node.x-  this.x), abs(node.y - this.y));
+    return 14 * diag + 10 * (max(abs(node.x - this.x), abs(node.y - this.y)) - diag);
   }
 }
 
@@ -399,33 +411,33 @@ function preload() {
 
 
 function setup() {
-  canvas = createCanvas(0.9*windowWidth, 0.9*windowHeight);
+  canvas = createCanvas(0.9 * windowWidth, 0.9 * windowHeight);
   canvas.elt.addEventListener("contextmenu", (e) => e.preventDefault()); // Asked ChatGPT how to disable the content table when right clicking. Basically, if there's a context table tries to pop up, we block the event so it doesn't show up with this preventDefault() function.
   angleMode(DEGREES);
-  cols = floor(width/CELL_SIZE);
-  rows = floor(height/CELL_SIZE);
+  cols = floor(width / CELL_SIZE);
+  rows = floor(height / CELL_SIZE);
   grid = generateGrid(rows, cols);
   renderGrid();
   // console.log(grid); // for debugging purposes
 
   // create nodeGrid
-  for (let i=0; i<cols; i++) {
+  for (let i = 0; i < cols; i++) {
     nodeGrid.push([]);
-    for (let j=0; j<rows; j++) {
+    for (let j = 0; j < rows; j++) {
       let node = new PathNode(i,j);
       nodeGrid[i].push(node);
     }
   }
   // set the neighbors of each node using PathNode.getNeighbors()
-  for (let i=0; i<cols; i++) {
-    for (let j=0; j<rows; j++) {
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < rows; j++) {
       nodeGrid[i][j].getNeighbors();
     }
   }
 
   // create player's units (for demo purposes, just create a number of units lining up at the top-left corner, adjacent to eachother)
-  for (let i=0; i<30; i++) {
-    units.push(new Unit(i%cols, floor(i/cols)));
+  for (let i = 0; i < 30; i++) {
+    units.push(new Unit(i % cols, floor(i / cols)));
   }
 
   //create enemy units (bottom-right)
@@ -520,7 +532,7 @@ function unitsLoop() {
 
     // Movement 
     // console.log(u.status); // for testing purposes
-    if ((millis()/1000 - u.lastMovedTime >= u.deltaTime) && u.status === "moving") {
+    if ((millis() / 1000 - u.lastMovedTime >= u.deltaTime) && u.status === "moving") {
       // console.log(u.movePath[u.movePath.length-1]); // for debugging
       if (u.movePath.length > 0) {
         u.move();
@@ -533,7 +545,7 @@ function unitsLoop() {
     if (u.status === "attacking") { // logic is: inch foward, try attack, repeat.
       // Move toward target if path exists
       if (u.movePath != null && u.movePath.length > 0) {
-        if (millis()/1000 - u.lastMovedTime >= u.deltaTime) {
+        if (millis() / 1000 - u.lastMovedTime >= u.deltaTime) {
           u.move();
         }
       }
@@ -576,7 +588,7 @@ function moveSelectedUnits(x, y) {
     return; // exit the function without moving anything
   }
 
-  for (let i=0; i<selectedUnits.length; i++) {
+  for (let i = 0; i < selectedUnits.length; i++) {
     // console.log(u.x, u.y, x, y, u.moveSlope);
     let u = selectedUnits[i];
     u.status = "pathfinding";
@@ -589,8 +601,8 @@ function getSpreadDestinations(x, y, n) { // a function that assigns the n selec
   let dests = [];
   let radius = 0;
   while (dests.length < n) {
-    for (let dx=-radius; dx<=radius; dx++) {
-      for (let dy=-radius; dy<=radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      for (let dy = -radius; dy <= radius; dy++) {
         // only consider the border cells of the square, not the inner cells because they've already been checked by the previous pass.
         if (abs(dx) === radius || abs(dy) === radius) {
           let destX = x + dx;
@@ -620,20 +632,20 @@ function assignDestinations(selectedUnits, destinations) {
   let used = new Array(destinations.length).fill(false); // tracks already used desitnations
   
   // for each unit, find the closest dest.
-  for (let i=0; i<selectedUnits.length; i++) {
+  for (let i = 0; i < selectedUnits.length; i++) {
     let u = selectedUnits[i];
     let bestDist = Infinity;
     let bestIndex = 0;
 
     // check each destination for minimal distance
-    for (let j=0; j<destinations.length; j++) {
+    for (let j = 0; j < destinations.length; j++) {
       if (used[j]) {
         continue; // skip used ones
       }
 
       let dx = destinations[j].x - u.x;
       let dy = destinations[j].y - u.y;
-      let dist = sqrt(dx*dx + dy*dy); // gets euclidean distance via pythagoras
+      let dist = sqrt(dx * dx + dy * dy); // gets euclidean distance via pythagoras
       if (dist < bestDist) {
         bestDist = dist;
         bestIndex = j;
@@ -689,7 +701,7 @@ function selectionBox() {
     rectMode(CORNERS);
     noFill();
     strokeWeight(3);
-    stroke("light green");
+    stroke("lightgreen");
 
     rect(mouseSelectCoord[0], mouseSelectCoord[1], mouseX, mouseY);
   }
@@ -697,10 +709,10 @@ function selectionBox() {
 
 function generateGrid(rows, cols) { // generate grid array and occupation array
   let newGrid = [];
-  for (let i=0; i<cols; i++) {
+  for (let i = 0; i < cols; i++) {
     newGrid.push([]);
     occupation.push([]);
-    for (let j=0; j<rows; j++) {
+    for (let j = 0; j < rows; j++) {
       occupation[i].push(null); // initialize occupation grid with null vals.
       let rand = random();
       if (rand < grassDensity) {
@@ -715,22 +727,22 @@ function generateGrid(rows, cols) { // generate grid array and occupation array
 
 function emptyGrid(rows, cols) {
   let newGrid = [];
-  for (let i=0; i<cols; i++) {
+  for (let i = 0; i < cols; i++) {
     newGrid.push([]);
-    for (let j=0; j<rows; j++) {
+    for (let j = 0; j < rows; j++) {
       newGrid[i].push(OPEN_TILE);
     }
   }
   return newGrid;
 }
 function renderGrid() {
-  for (let i=0; i<cols; i++) {
-    for (let j=0; j<rows; j++) {
+  for (let i = 0; i < cols; i++) {
+    for (let j = 0; j < rows; j++) {
 
       if (grid[i][j] === OPEN_TILE || grid[i][j] instanceof Unit) {
-        image(pavingImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        image(pavingImg, i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE, CELL_SIZE);
       } else if (grid[i][j] === WALL_TILE) { // call "instanceof" to check if the grid cell contains a "Unit" object
-        image(grassImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        image(grassImg, i * CELL_SIZE, j * CELL_SIZE, CELL_SIZE, CELL_SIZE);
       }
 
       //  if (occupation[i][j] != null) { // for debugging purposes, show occupied cells
@@ -746,7 +758,7 @@ function renderGrid() {
 
 function getCoordinate(x, y) {
   let index = [];
-  index.push(max(0, min(cols-1, floor(x/CELL_SIZE))));
-  index.push(max(0, min(rows-1, floor(y/CELL_SIZE))));
+  index.push(max(0, min(cols - 1, floor(x / CELL_SIZE))));
+  index.push(max(0, min(rows - 1, floor(y / CELL_SIZE))));
   return index;
 }
