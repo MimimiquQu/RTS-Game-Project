@@ -12,7 +12,7 @@ let rows;
 let cols;
 let grassImg;
 let pavingImg;
-let grassDensity = 0.1; // percentage of grass tiles in the grid
+let grassDensity = 0.2; // percentage of grass tiles in the grid
 let unitSpeed = 15; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
@@ -443,6 +443,7 @@ function draw() {
   renderGrid();
   unitsLoop();
   selectionBox();
+  enemyAI();
   
   console.log(command); // for debugging purposes
 }
@@ -662,6 +663,21 @@ function attackWithSelectedUnits(target) {
     if (u.team != target.team) { // prevent attacking own team
       u.attackTarget = target;
       u.status = "attacking";
+    }
+  }
+}
+
+function enemyAI() {
+  for (let u of units) {
+    if (u.team === "Enemy" && u.status === "idle") {
+      // find a player unit to atk
+      for (let target of units) {
+        if (target.team === "Player") {
+          u.attackTarget = target;
+          u.status = "attacking";
+          break;
+        }
+      }
     }
   }
 }
