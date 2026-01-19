@@ -1,18 +1,19 @@
 // Rectangle Neighbors 2d Array Demo
 
-const CELL_SIZE = 40;
+const CELL_SIZE = 30;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
 const UNIT_DISPLAY_SCALE = 1.2;
 
 let canvas;
 let grid;
+let occupation = []; // stores the units that's occupying each cell in the grid
 let rows;
 let cols;
 let grassImg;
 let pavingImg;
-let grassDensity = 0.0; // percentage of grass tiles in the grid
-let unitSpeed = 10; // grids per second
+let grassDensity = 0.1; // percentage of grass tiles in the grid
+let unitSpeed = 20; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
 let selectedUnits = [];
@@ -21,7 +22,6 @@ let showSelectionBox = false;
 
 // create an array of all nodes in the entire grid, so that we can reference them later without duplicating them.
 let nodeGrid = [];
-
 
 
 class Priorityarray extends Array {
@@ -69,13 +69,10 @@ class Unit {
     this.lastMovedTime = 0;
     this.status = "idle"; // a finite status machine of what command the unit is currently executing. "idle" for nothing. "pending", "pathfinding", "move", "attack", etc.
     this.selected = false;
-    this.moveTargetX = x;
-    this.moveTargetY = y;
-    this.moveStartX = x;
-    this.moveStartY = y;
     this.movePath;
     this.waitTime = 0;
     this.maxWaitTime = 1; // in seconds
+    occupation[x][y] = this; //mark the unit's position on the occupation grid
     grid[x][y] = this; // mark the unit's position on the grid
   }
 
@@ -83,52 +80,57 @@ class Unit {
     let next = this.movePath[this.movePath.length-1];
 
     // check if destination is blocked by another unit, if so then do not move.
-    if (grid[next.x][next.y] != OPEN_TILE) {
+    if (grid[next.x][next.y] != OPEN_TILE && occupation[next.x][next.y] != null) {
       // when path is blocked, add wait time
       this.waitTime += this.deltaTime;
-      if (waitTime > this.maxWaitTime) {
-        let alt = this.tryAlternativePath();
+      if (this.waitTime > this.maxWaitTime) { // when waittime exceeds its max, try finding an alternative path
+
+        let alt = this.tryAlternativePath(this.movePath[0]);
         if (alt != null) {
           // found an alternative neighbor cell to move into
+          // move to alternative spot and re-pathfind
+          this.excecuteMove(alt);
+          this.movePath = this.pathfind(nodeGrid[this.x][this.y], this.movePath[0]); // re-pathfind to original target
 
+          if (this.movePath === null || this.movePath.length === 0) { // check if path is reached or invalid, in either case exit the moving status
+            this.status = "idle";
+
+          }
         }
       }
       // console.log(grid[next.x][next.y]); // for debugging purposes
       return;
     }
+    
+    // not blocked, move to next tile as usual
+    this.excecuteMove(next);
+    this.movePath.splice(this.movePath.length-1, 1);
+    this.waitTime = 0; // reset wait time upon successful movement
+    
+  }
 
-    // erase old tile in grid
-    grid[this.x][this.y] = OPEN_TILE;
+  excecuteMove(nextStep) { // this is where the actual movement takes place
+    // erase old tile in occupation array
+    if (occupation[this.x][this.y] === this) {
+      occupation[this.x][this.y] = null;
+    }
     //move to next tile
-    grid[next.x][next.y] = this;
+    occupation[nextStep.x][nextStep.y] = null;
 
     // change unit's position
-    this.x = next.x;
-    this.y = next.y;
-    this.movePath.splice(this.movePath.length-1, 1);
+    this.x = nextStep.x;
+    this.y = nextStep.y;
     this.lastMovedTime = millis()/1000;
   }
 
-  render() {
-    fill("blue");
-    if (this.selected) {
-      stroke("green");
-      strokeWeight(5);
-    } else {
-      stroke("black");
-      strokeWeight(1);
-    }
-    circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE*UNIT_DISPLAY_SCALE);
-  }
 
   // use A* algorithm (Hueristic) for pathfinding
-  pathfind() {
+  pathfind(start, target) { // takes in starting node and target node as parameters
     // console.log(1); // 1 is the code for testing
     
     let openNodes = new Priorityarray(); // nodes that are waiting to be evaulated(searched). I put them in a priority array(a class I created) so that we can use the enqueue function to push elements in while preserving its sorted sequence based on f-cost("priority")
     let closedNodes = []; // nodes that we have already searched
-    let target = nodeGrid[this.moveTargetX][this.moveTargetY];
-    let current = nodeGrid[this.moveStartX][this.moveStartY]; 
+    let current = start; // current node being evaulated
     current.gCost = 0;
     current.hCost = current.gridDist(target);
     current.fCost = current.gCost + current.hCost;
@@ -137,7 +139,7 @@ class Unit {
     
 
     // pathfinding loop, doesn't exit until the unit reaches the target
-    while (this.status === "pathfinding") {
+    while (openNodes.length > 0) {
       // console.log(openNodes); //console.log the open nodes for debugging purposes
       // check if target is reached
       if (current.x === target.x && current.y === target.y) { // current === target, path has been found!
@@ -186,7 +188,7 @@ class Unit {
     let path = [];
     let node = target; // create a temporary looping variable "node", and its start value is target
     path.push(node);
-    while(node != nodeGrid[this.moveStartX][this.moveStartY]) {
+    while(node != start) {
       node = node.parent;
       path.push(node);
     }
@@ -195,12 +197,11 @@ class Unit {
     return path;
   }
 
-  tryAlternativePath() {
+  tryAlternativePath(target) { // takes in the original target node as parameter
     // check the 8 neighboring cells and see which one is the best for the unit to move into any of them.
     let bestNb = null;
     let bestDist = Infinity;
     let node = nodeGrid[this.x][this.y];
-    let target = nodeGrid[this.moveTargetX][this.moveTargetY];
     for (let nb of node.neighbors) {
       if (grid[nb.x][nb.y] === OPEN_TILE) {
         // found an open neighbor cell, see if it's the best one yet.
@@ -211,6 +212,18 @@ class Unit {
       }
     }
     return bestNb;
+  }
+
+  render() {
+    fill("blue");
+    if (this.selected) {
+      stroke("green");
+      strokeWeight(5);
+    } else {
+      stroke("black");
+      strokeWeight(1);
+    }
+    circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE*UNIT_DISPLAY_SCALE);
   }
 }
 
@@ -279,11 +292,6 @@ function setup() {
   grid = generateGrid(rows, cols);
   renderGrid();
   // console.log(grid); // for debugging purposes
-  
-  // create units (for demo purposes, just create a number of units lining up at the top-left corner, adjacent to eachother)
-  for (let i=0; i<100; i++) {
-    units.push(new Unit(i%cols, floor(i/cols)));
-  }
 
   // create nodeGrid
   for (let i=0; i<cols; i++) {
@@ -299,7 +307,13 @@ function setup() {
       nodeGrid[i][j].getNeighbors();
     }
   }
-  // console.log(nodeGrid);
+
+  // create units (for demo purposes, just create a number of units lining up at the top-left corner, adjacent to eachother)
+  for (let i=0; i<100; i++) {
+    units.push(new Unit(i%cols, floor(i/cols)));
+  }
+
+  // console.log(nodeGrid); // fir debugging purposes
 }
 
 
@@ -416,12 +430,8 @@ function moveSelectedUnits(x, y) {
   for (let i=0; i<selectedUnits.length; i++) {
     // console.log(u.x, u.y, x, y, u.moveSlope);
     let u = selectedUnits[i];
-    u.moveStartX = u.x;
-    u.moveStartY = u.y;
-    u.moveTargetX = destinations[i].x;
-    u.moveTargetY = destinations[i].y;
     u.status = "pathfinding";
-    u.movePath = u.pathfind(); // call A* pathfinding algorithm
+    u.movePath = u.pathfind(nodeGrid[u.x][u.y], nodeGrid[destinations[i].x][destinations[i].y]); // call A* pathfinding algorithm
     // console.log(u.movePath); // for debugging purposes, show the path
   }
 }
@@ -469,11 +479,13 @@ function selectionBox() {
   }
 }
 
-function generateGrid(rows, cols) {
+function generateGrid(rows, cols) { // generate grid array and occupation array
   let newGrid = [];
   for (let i=0; i<cols; i++) {
     newGrid.push([]);
+    occupation.push([]);
     for (let j=0; j<rows; j++) {
+      occupation[i].push(null); // initialize occupation grid with null vals.
       let rand = random();
       if (rand < grassDensity) {
         newGrid[i].push(WALL_TILE);
@@ -498,9 +510,9 @@ function emptyGrid(rows, cols) {
 function renderGrid() {
   for (let i=0; i<cols; i++) {
     for (let j=0; j<rows; j++) {
-      if (grid[i][j] === OPEN_TILE) {
+      if (grid[i][j] === OPEN_TILE || grid[i][j] instanceof Unit) {
         image(pavingImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      } else if (grid[i][j] === WALL_TILE || grid[i][j] instanceof Unit) { // call "instanceof" to check if the grid cell contains a "Unit" object
+      } else if (grid[i][j] === WALL_TILE) { // call "instanceof" to check if the grid cell contains a "Unit" object
         image(grassImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
       }
     }
