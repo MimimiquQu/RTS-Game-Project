@@ -13,7 +13,7 @@ let cols;
 let grassImg;
 let pavingImg;
 let grassDensity = 0.1; // percentage of grass tiles in the grid
-let unitSpeed = 20; // grids per second
+let unitSpeed = 15; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
 let selectedUnits = [];
@@ -79,7 +79,7 @@ class Unit {
     this.team = team;
     this.hp = 100;
     this.maxHp = 100;
-    this.damage = 25;
+    this.damage = 10;
     this.attackRange = 5; //in tiles
     this.attackCooldown = 0.5; // in secs
     this.lastAttackTime = 0; // same as lastMovedTime, tracks the last time the unit attacked.
@@ -152,12 +152,14 @@ class Unit {
     // console.log(openNodes);
     openNodes.enqueue(current, 0, openNodes.length-1); // enqueue the current node into the openNodes priority array, bascially when adding the element, find the appropriate place for it based on priority(determined by f-cost, tie-breaked by lowest h-cost)
     
+    let foundPath = false; // flag to prevent crash
 
     // pathfinding loop, doesn't exit until the unit reaches the target
     while (openNodes.length > 0) {
       // console.log(openNodes); //console.log the open nodes for debugging purposes
       // check if target is reached
       if (current.x === target.x && current.y === target.y) { // current === target, path has been found!
+        foundPath = true;
         break;
       }
 
@@ -199,9 +201,16 @@ class Unit {
       }
     }
 
+    //check if path was foudn before reconstructing path
+    if (!foundPath) {
+      console.log("Warning: invalid movement command, target cannot be reached from current position.");
+      return null;
+    }
+
+
     // reconstruct the path by tracing the parents of nodes recursively. PS: the path array starts from the target and ends at the start node.
     let path = [];
-    let node = target; // create a temporary looping variable "node", and its start value is target
+    let node = current; // create a temporary looping variable "node", and its start value is target
     path.push(node);
     while(node != start) {
       node = node.parent;
@@ -267,6 +276,14 @@ class Unit {
       this.status = "pathfinding";
       this.movePath = this.pathfind(nodeGrid[this.x][this.y], nodeGrid[this.attackTarget.x][this.attackTarget.y]);
       this.status = "attacking"; // hold attacking state
+
+      // null checl
+      if (this.movePath === null) {
+        console.log("cant reach target");
+        this.attackTarget = null;
+        this.status = "idle";
+        return;
+      }
     }
   }
 
