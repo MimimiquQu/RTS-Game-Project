@@ -329,7 +329,7 @@ class Unit {
 
     // selection highlight
     if (this.selected) {
-      stroke("green");
+      stroke("yellow");
       strokeWeight(5);
     } else {
       stroke("black");
