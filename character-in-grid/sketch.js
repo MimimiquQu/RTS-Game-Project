@@ -13,7 +13,7 @@ let cols;
 let grassImg;
 let pavingImg;
 let grassDensity = 0.2; // percentage of grass tiles in the grid
-let unitSpeed = 15; // grids per second
+let unitSpeed = 10; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
 let selectedUnits = [];
@@ -422,12 +422,12 @@ function setup() {
   }
 
   // create player's units (for demo purposes, just create a number of units lining up at the top-left corner, adjacent to eachother)
-  for (let i=0; i<20; i++) {
+  for (let i=0; i<30; i++) {
     units.push(new Unit(i%cols, floor(i/cols)));
   }
 
   //create enemy units (bottom-right)
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 10; i++) {
     units.push(new Unit(cols - 1 - (i % cols), rows - 1 - floor(i / cols), "Enemy"));
     
   }
