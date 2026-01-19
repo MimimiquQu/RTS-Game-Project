@@ -61,7 +61,7 @@ class Priorityarray extends Array {
 
 
 class Unit {
-  constructor(x, y) {
+  constructor(x, y, team = "Player") {
     this.x = x;
     this.y = y;
     this.speed = unitSpeed;
@@ -72,15 +72,25 @@ class Unit {
     this.movePath;
     this.waitTime = 0;
     this.maxWaitTime = 1; // in seconds
-    occupation[x][y] = this; //mark the unit's position on the occupation grid
-    grid[x][y] = this; // mark the unit's position on the grid
+    // this.backtrackLimit = 3; // number of tiles the unit can backtrack to determine it it's stuck
+    // this.elapsedTiles = new Array(this.backtrackLimit); // tracks the last N number of tiles the unit has moved through, used to determine if the unit is stuck in a loop.
+    
+    // attack/health/team properties
+    this.team = team;
+    this.hp = 100;
+    this.maxHp = 100;
+    this.damage = 25;
+    this.attackRange = 5; //in tiles
+    this.attackCooldown = 0.5; // in secs
+    this.lastAttackTime = 0; // same as lastMovedTime, tracks the last time the unit attacked.
+    this.attackTarget = null;
   }
 
   move() {
     let next = this.movePath[this.movePath.length-1];
 
     // check if destination is blocked by another unit, if so then do not move.
-    if (grid[next.x][next.y] != OPEN_TILE && occupation[next.x][next.y] != null) {
+    if (grid[next.x][next.y] != OPEN_TILE || occupation[next.x][next.y] != null) {
       // when path is blocked, add wait time
       this.waitTime += this.deltaTime;
       if (this.waitTime > this.maxWaitTime) { // when waittime exceeds its max, try finding an alternative path
@@ -114,13 +124,18 @@ class Unit {
     if (occupation[this.x][this.y] === this) {
       occupation[this.x][this.y] = null;
     }
-    //move to next tile
-    occupation[nextStep.x][nextStep.y] = null;
 
     // change unit's position
     this.x = nextStep.x;
     this.y = nextStep.y;
     this.lastMovedTime = millis()/1000;
+
+    //move to next tile
+    occupation[nextStep.x][nextStep.y] = this;
+
+    // //update elapsedTiles array
+    // this.elapsedTiles.push({})
+    
   }
 
 
@@ -203,7 +218,7 @@ class Unit {
     let bestDist = Infinity;
     let node = nodeGrid[this.x][this.y];
     for (let nb of node.neighbors) {
-      if (grid[nb.x][nb.y] === OPEN_TILE) {
+      if (grid[nb.x][nb.y] === OPEN_TILE && occupation[nb.x][nb.y] == null) {
         // found an open neighbor cell, see if it's the best one yet.
         if (nb.gridDist(target) < bestDist) {
         bestDist = nb.gridDist(target);
@@ -214,8 +229,86 @@ class Unit {
     return bestNb;
   }
 
-  render() {
-    fill("blue");
+
+  distTo(otherUnit) { // gets euclidean distance to another unit
+    let dx = otherUnit.x - this.x;
+    let dy = otherUnit.y - this.y;
+    return sqrt(dx*dx + dy*dy);
+
+  }
+
+
+  // combat logic
+  attack() {
+
+    // check if target is valid
+    if (this.attackTarget === null || this.attackTarget.hp <= 0) {
+      this.attackTarget = null;
+      this.status = "idle";
+      return;
+    }
+
+    let dist = this.distTo(this.attackTarget);
+
+    // if in range, shoot
+    if (dist <= this.attackRange) {
+      if (millis()/1000 - this.lastAttackTime >= this.attackCooldown) {
+        this.attackTarget.hp -= this.damage;
+        this.lastAttackTime = millis()/1000;
+
+        //Target is killed
+        if (this.attackTarget.hp <= 0) {
+          this.attackTarget.die();
+          this.attackTarget = null;
+          this.status = "idle";
+        }
+      }
+    } else { // not in range -> move closer
+      this.status = "pathfinding";
+      this.movePath = this.pathfind(nodeGrid[this.x][this.y], nodeGrid[this.attackTarget.x][this.attackTarget.y]);
+      this.status = "attacking"; // hold attacking state
+    }
+  }
+
+  die() { // unit despawning logic
+
+    if (occupation[this.x][this.y] === this) {
+      occupation[this.x][this.y] = null; // clear occup.
+    }
+
+    //remove from units array
+    let index = units.indexOf(this);
+    if (index > -1) { // in js, this just means that it exists
+      units.splice(index, 1);
+    }
+  }
+
+  renderHealthBar() {
+    let barWidth = CELL_SIZE * 0.5;
+    let barHeight = 4;
+    let xPos = (this.x + 0.5) * CELL_SIZE - barWidth / 2;
+    let yPos = this.y * CELL_SIZE - 5;
+
+    noStroke();
+    // healthbar background, red
+    fill("red");
+    rectMode(CORNER);
+    rect(xPos, yPos, barWidth, barHeight);
+
+    //healthbar foreground, green
+    fill("green");
+    rect(xPos, yPos, barWidth*(this.hp/this.maxHp), barHeight);
+
+  }
+
+  render() { // display unit on map
+    if (this.team === "Player") {
+      fill("blue");
+    } else {
+      fill("red");
+    }
+
+    // selection highlight
     if (this.selected) {
       stroke("green");
       strokeWeight(5);
@@ -224,7 +317,10 @@ class Unit {
       strokeWeight(1);
     }
     circle((this.x+0.5)*CELL_SIZE, (this.y+0.5)*CELL_SIZE, CELL_SIZE*UNIT_DISPLAY_SCALE);
+
+    this.renderHealthBar();
   }
+
 }
 
 class PathNode {
@@ -308,9 +404,15 @@ function setup() {
     }
   }
 
-  // create units (for demo purposes, just create a number of units lining up at the top-left corner, adjacent to eachother)
-  for (let i=0; i<100; i++) {
+  // create player's units (for demo purposes, just create a number of units lining up at the top-left corner, adjacent to eachother)
+  for (let i=0; i<20; i++) {
     units.push(new Unit(i%cols, floor(i/cols)));
+  }
+
+  //create enemy units (bottom-right)
+  for (let i = 0; i < 20; i++) {
+    units.push(new Unit(cols - 1 - (i % cols), rows - 1 - floor(i / cols), "Enemy"));
+    
   }
 
   // console.log(nodeGrid); // fir debugging purposes
@@ -346,10 +448,17 @@ function mousePressed() {
   }
   
   if (command === "move" && (mouseButton === RIGHT)) {
-    if(grid[x][y] === WALL_TILE) {
-      console.log("Warning: Invalid movement commad, target is blocked.")
-    } else {
+    
+    // check if clicked on enemy
+    let enemy = getEnemyAt(x,y);
+
+    if (enemy != null) {
+      attackWithSelectedUnits(enemy);
+
+    } else if (grid[x][y] != WALL_TILE) {
       moveSelectedUnits(x, y); // the select boundary is just the cell at (x,y).
+    } else {
+      console.log("Warning: Invalid movement commad, target is blocked.");
     }
   }
 }
@@ -386,7 +495,10 @@ function mouseReleased() { //called when user releases their mouse when box-sele
 
 
 function unitsLoop() {
-  for (let u of units) {
+  for (let i = units.length - 1; i >= 0; i--) { // use reverse loop because units may die and be removed.
+    let u = units[i];
+
+    // Movement 
     // console.log(u.status); // for testing purposes
     if ((millis()/1000 - u.lastMovedTime >= u.deltaTime) && u.status === "moving") {
       // console.log(u.movePath[u.movePath.length-1]); // for debugging
@@ -395,6 +507,18 @@ function unitsLoop() {
       } else {
         u.status = "idle"; // there is no more path for the unit to move along, so set the status to "idle"
       }
+    }
+
+    // attacking
+    if (u.status === "attacking") { // logic is: inch foward, try attack, repeat.
+      // Move toward target if path exists
+      if (u.movePath != null && u.movePath.length > 0) {
+        if (millis()/1000 - u.lastMovedTime >= u.deltaTime) {
+          u.move();
+        }
+      }
+      //try attacking
+      u.attack();
     }
     u.render();
   }
@@ -409,6 +533,8 @@ function selectUnitsInArea(x1, y1, x2, y2) { // this function returns an array o
 
   let targetUnits = [];
   for (let u of units) {
+
+    if (u.team != "Player") continue;
     // console.log(u);
     if ((u.x >= min(x1,x2)) && (u.x <= max(x1,x2)) && (u.y >= min(y1,y2)) && (u.y <= max(y1,y2))) {
       targetUnits.push(u);
@@ -423,6 +549,9 @@ function moveSelectedUnits(x, y) {
   // set different destinations for each selected unit, centered at the target (x,y) position. 
   // This ensures that multiple selected units can end up moving to distinct and neighboring cells around the destination, instead of feebly trying to all go to the same target(x,y) and end up stucking forever.
   let destinations = getSpreadDestinations(x, y, selectedUnits.length);
+  
+  // assign destinations to selected units based on proximity
+  let assignments = assignDestinations(selectedUnits, destinations);
   if (destinations === -1) { // recieved error code
     return; // exit the function without moving anything
   }
@@ -431,7 +560,7 @@ function moveSelectedUnits(x, y) {
     // console.log(u.x, u.y, x, y, u.moveSlope);
     let u = selectedUnits[i];
     u.status = "pathfinding";
-    u.movePath = u.pathfind(nodeGrid[u.x][u.y], nodeGrid[destinations[i].x][destinations[i].y]); // call A* pathfinding algorithm
+    u.movePath = u.pathfind(nodeGrid[u.x][u.y], nodeGrid[assignments[i].x][assignments[i].y]); // call A* pathfinding algorithm
     // console.log(u.movePath); // for debugging purposes, show the path
   }
 }
@@ -461,12 +590,64 @@ function getSpreadDestinations(x, y, n) { // a function that assigns the n selec
     radius++;
   }
   if (dests.length < n) {
-    console.log("Warning: invalid movement commad, not enough space to fit all selected units near target destination.");
+    console.log("Warning: invalid movement command, not enough space to fit all selected units near target destination.");
     return -1; // code for error
   }
-
 }
 
+function assignDestinations(selectedUnits, destinations) {
+  let assigned = new Array(selectedUnits.length); // tracks already assigned units
+  let used = new Array(destinations.length).fill(false); // tracks already used desitnations
+  
+  // for each unit, find the closest dest.
+  for (let i=0; i<selectedUnits.length; i++) {
+    let u = selectedUnits[i];
+    let bestDist = Infinity;
+    let bestIndex = 0;
+
+    // check each destination for minimal distance
+    for (let j=0; j<destinations.length; j++) {
+      if (used[j]) {
+        continue; // skip used ones
+      }
+
+      let dx = destinations[j].x - u.x;
+      let dy = destinations[j].y - u.y;
+      let dist = sqrt(dx*dx + dy*dy); // gets euclidean distance via pythagoras
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIndex = j;
+      }
+    }
+
+    // assign the best dest to unit
+    assigned[i] = destinations[bestIndex];
+    used[bestIndex] = true;
+  }
+  
+  return assigned;
+}
+
+
+// Attack logic helper functions
+
+function getEnemyAt(x, y) {
+  for (let u of units) {
+    if (u.x === x && u.y === y && u.team != "Player") {
+      return u;
+    }
+  }
+  return null;
+}
+
+function attackWithSelectedUnits(target) {
+  for (let u of selectedUnits) {
+    if (u.team != target.team) { // prevent attacking own team
+      u.attackTarget = target;
+      u.status = "attacking";
+    }
+  }
+}
 
 function selectionBox() {
   if (showSelectionBox) {
@@ -510,11 +691,20 @@ function emptyGrid(rows, cols) {
 function renderGrid() {
   for (let i=0; i<cols; i++) {
     for (let j=0; j<rows; j++) {
+
       if (grid[i][j] === OPEN_TILE || grid[i][j] instanceof Unit) {
         image(pavingImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
       } else if (grid[i][j] === WALL_TILE) { // call "instanceof" to check if the grid cell contains a "Unit" object
         image(grassImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
       }
+
+      //  if (occupation[i][j] != null) { // for debugging purposes, show occupied cells
+      //   // overlay a semi-transparent color to indicate occupation
+      //   fill(255, 0, 0);
+      //   rectMode(CORNER);
+      //   noStroke();
+      //   rect(i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
+      // }
     }
   }
 }
