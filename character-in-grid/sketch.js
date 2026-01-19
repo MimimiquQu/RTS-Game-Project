@@ -284,14 +284,14 @@ class Unit {
   }
 
   renderHealthBar() {
-    let barWidth = CELL_SIZE * 0.5;
-    let barHeight = 4;
+    let barWidth = CELL_SIZE * 1;
+    let barHeight = CELL_SIZE * 0.4;
     let xPos = (this.x + 0.5) * CELL_SIZE - barWidth / 2;
     let yPos = this.y * CELL_SIZE - 5;
 
     noStroke();
-    // healthbar background, red
-    fill("red");
+    // healthbar background, black
+    fill("black");
     rectMode(CORNER);
     rect(xPos, yPos, barWidth, barHeight);
 
