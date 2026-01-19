@@ -3,7 +3,7 @@
 const CELL_SIZE = 40;
 const OPEN_TILE = 0;
 const WALL_TILE = 1;
-const UNIT_DISPLAY_SCALE = 1.1;
+const UNIT_DISPLAY_SCALE = 1.2;
 
 let canvas;
 let grid;
@@ -11,8 +11,8 @@ let rows;
 let cols;
 let grassImg;
 let pavingImg;
-let grassDensity = 0.3;
-let unitSpeed = 5; // grids per second
+let grassDensity = 0.0; // percentage of grass tiles in the grid
+let unitSpeed = 10; // grids per second
 let units = [];
 let command = "null"; // this is the state variable that tracks the player's current command/state
 let selectedUnits = [];
@@ -74,12 +74,35 @@ class Unit {
     this.moveStartX = x;
     this.moveStartY = y;
     this.movePath;
+    this.waitTime = 0;
+    this.maxWaitTime = 1; // in seconds
+    grid[x][y] = this; // mark the unit's position on the grid
   }
+
   move() {
     let next = this.movePath[this.movePath.length-1];
-    // check if destination is blocked by another unit.
-    if (grid[next.x][next.y] != OPEN_TILE) {
 
+    // check if destination is blocked by another unit, if so then do not move.
+    if (grid[next.x][next.y] != OPEN_TILE) {
+      // when path is blocked, add wait time
+      this.waitTime += this.deltaTime;
+      if (waitTime > this.maxWaitTime) {
+        let alt = this.tryAlternativePath();
+        if (alt != null) {
+          // found an alternative neighbor cell to move into
+
+        }
+      }
+      // console.log(grid[next.x][next.y]); // for debugging purposes
+      return;
+    }
+
+    // erase old tile in grid
+    grid[this.x][this.y] = OPEN_TILE;
+    //move to next tile
+    grid[next.x][next.y] = this;
+
+    // change unit's position
     this.x = next.x;
     this.y = next.y;
     this.movePath.splice(this.movePath.length-1, 1);
@@ -124,6 +147,7 @@ class Unit {
       // if OPEN is empty, no path exists, exit.
       if (openNodes.length === 0) {
         this.status = "idle";
+        console.log("Warning: invalid movement command, target cannot be reached from current position.");
         return -1; // code for "No path"
       }
 
@@ -134,7 +158,7 @@ class Unit {
       // Correction: instead of looping through each neighbor, add all neighbors to OPEN.
       // loop through each neighbor
       for (let nb of current.neighbors) {
-        if (nb.tileType != OPEN_TILE || closedNodes.includes(nb)) {
+        if (grid[nb.x][nb.y] === WALL_TILE  || closedNodes.includes(nb)) { // when pathfinding, treat other units as open tiles.
           continue;
         }
         
@@ -166,8 +190,27 @@ class Unit {
       node = node.parent;
       path.push(node);
     }
+    path.splice(path.length-1, 1); // remove the starting node from the path, since the unit is already at the starting node
     this.status = "moving"; // exit pathfinding state and enter moving state
     return path;
+  }
+
+  tryAlternativePath() {
+    // check the 8 neighboring cells and see which one is the best for the unit to move into any of them.
+    let bestNb = null;
+    let bestDist = Infinity;
+    let node = nodeGrid[this.x][this.y];
+    let target = nodeGrid[this.moveTargetX][this.moveTargetY];
+    for (let nb of node.neighbors) {
+      if (grid[nb.x][nb.y] === OPEN_TILE) {
+        // found an open neighbor cell, see if it's the best one yet.
+        if (nb.gridDist(target) < bestDist) {
+        bestDist = nb.gridDist(target);
+        bestNb = nb;
+        }
+      }
+    }
+    return bestNb;
   }
 }
 
@@ -177,7 +220,6 @@ class PathNode {
     this.y = y;
     this.parent;
     this.neighbors = [];
-    this.tileType = grid[x][y];
     this.fCost;
     this.gCost;
     this.hCost;
@@ -236,9 +278,10 @@ function setup() {
   rows = floor(height/CELL_SIZE);
   grid = generateGrid(rows, cols);
   renderGrid();
-  // console.log(grid); //
+  // console.log(grid); // for debugging purposes
   
-  for (let i=0; i<10; i++) {
+  // create units (for demo purposes, just create a number of units lining up at the top-left corner, adjacent to eachother)
+  for (let i=0; i<100; i++) {
     units.push(new Unit(i%cols, floor(i/cols)));
   }
 
@@ -267,6 +310,7 @@ function draw() {
   renderGrid();
   unitsLoop();
   selectionBox();
+  
   console.log(command); // for debugging purposes
 }
 
@@ -288,7 +332,11 @@ function mousePressed() {
   }
   
   if (command === "move" && (mouseButton === RIGHT)) {
-    moveSelectedUnits(x, y); // the select boundary is just the cell at (x,y).
+    if(grid[x][y] === WALL_TILE) {
+      console.log("Warning: Invalid movement commad, target is blocked.")
+    } else {
+      moveSelectedUnits(x, y); // the select boundary is just the cell at (x,y).
+    }
   }
 }
 
@@ -358,17 +406,57 @@ function selectUnitsInArea(x1, y1, x2, y2) { // this function returns an array o
 }
 
 function moveSelectedUnits(x, y) {
-  for (let u of selectedUnits) {
+  // set different destinations for each selected unit, centered at the target (x,y) position. 
+  // This ensures that multiple selected units can end up moving to distinct and neighboring cells around the destination, instead of feebly trying to all go to the same target(x,y) and end up stucking forever.
+  let destinations = getSpreadDestinations(x, y, selectedUnits.length);
+  if (destinations === -1) { // recieved error code
+    return; // exit the function without moving anything
+  }
+
+  for (let i=0; i<selectedUnits.length; i++) {
     // console.log(u.x, u.y, x, y, u.moveSlope);
+    let u = selectedUnits[i];
     u.moveStartX = u.x;
     u.moveStartY = u.y;
-    u.moveTargetX = x;
-    u.moveTargetY = y;
+    u.moveTargetX = destinations[i].x;
+    u.moveTargetY = destinations[i].y;
     u.status = "pathfinding";
     u.movePath = u.pathfind(); // call A* pathfinding algorithm
-    console.log(u.movePath); // for debugging purposes, show the path
+    // console.log(u.movePath); // for debugging purposes, show the path
   }
 }
+
+function getSpreadDestinations(x, y, n) { // a function that assigns the n selected units to n distinct neighboring desinations around the target(x,y)
+  let dests = [];
+  let radius = 0;
+  while (dests.length < n) {
+    for (let dx=-radius; dx<=radius; dx++) {
+      for (let dy=-radius; dy<=radius; dy++) {
+        // only consider the border cells of the square, not the inner cells because they've already been checked by the previous pass.
+        if (abs(dx) === radius || abs(dy) === radius) {
+          let destX = x + dx;
+          let destY = y + dy;
+          // check if the destination is within bounds and is an OPEN_TILE
+          if (destX >=0 && destX < cols && destY >=0 && destY < rows && grid[destX][destY] != WALL_TILE) {
+            dests.push({x: destX, y: destY});
+            if (dests.length === n) { // AFTER we add a new destination, check if we have enough destinations already. If so then return.
+              // console.log(dests); // for debugging purposes
+              return dests;
+
+            }
+          }
+        }
+      }
+    }
+    radius++;
+  }
+  if (dests.length < n) {
+    console.log("Warning: invalid movement commad, not enough space to fit all selected units near target destination.");
+    return -1; // code for error
+  }
+
+}
+
 
 function selectionBox() {
   if (showSelectionBox) {
@@ -412,7 +500,7 @@ function renderGrid() {
     for (let j=0; j<rows; j++) {
       if (grid[i][j] === OPEN_TILE) {
         image(pavingImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
-      } else if (grid[i][j] === WALL_TILE) {
+      } else if (grid[i][j] === WALL_TILE || grid[i][j] instanceof Unit) { // call "instanceof" to check if the grid cell contains a "Unit" object
         image(grassImg, i*CELL_SIZE, j*CELL_SIZE, CELL_SIZE, CELL_SIZE);
       }
     }
